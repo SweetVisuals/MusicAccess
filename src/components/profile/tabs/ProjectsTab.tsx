@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
   DndContext,
   closestCenter,
   KeyboardSensor,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   DragEndEvent,
+  UniqueIdentifier,
 } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -15,8 +17,7 @@ import {
   horizontalListSortingStrategy,
   useSortable,
 } from '@dnd-kit/sortable';
-import { LayoutGrid } from 'lucide-react';
-import TrackCard from '../music/TrackCard';
+import { CSS } from '@dnd-kit/utilities';
 import ProjectCard from '../music/ProjectCard';
 import ProjectListView from '../music/ProjectListView';
 import useProfile from '@/hooks/useProfile';
@@ -30,24 +31,33 @@ interface ProjectsTabProps {
 
 const ProjectsTab = ({ viewMode, sortBy }: ProjectsTabProps) => {
   const { stats } = useProfile();
-  const [currentPage, setCurrentPage] = React.useState(1);
+  const [currentPage, setCurrentPage] = useState(1);
   const projectsPerPage = 8;
-  const [projects, setProjects] = useState<Array<{
-    id: string;
-    title: string;
-    artworkUrl: string;
-    tracks: Array<{
-      id: string;
-      title: string;
-      duration: string;
-      streams: number;
-      artworkUrl: string;
-      isPopular: boolean;
-    }>;
-    totalTracks: number;
-    isPopular: boolean;
-  }>>(() => {
-    const allProjects = generateAllProjects();
+  const [projects, setProjects] = useState(() => {
+    // Sample track data - would normally come from API
+    const allTracks = Array.from({ length: stats.tracks }, (_, i) => ({
+      id: `track-${i + 1}`,
+      title: `Track ${i + 1}`,
+      duration: `${Math.floor(Math.random() * 4) + 2}:${Math.floor(Math.random() * 60).toString().padStart(2, '0')}`,
+      streams: Math.floor(Math.random() *  10000),
+      artworkUrl: 'https://images.pexels.com/photos/5077069/pexels-photo-5077069.jpeg',
+      isPopular: Math.random() > 0.7,
+    }));
+
+    // Group all tracks into projects (10 tracks per project)
+    const allProjects = [];
+    for (let i = 0; i < allTracks.length; i += 10) {
+      const projectTracks = allTracks.slice(i, i + 10);
+      allProjects.push({
+        id: `project-${Math.floor(i / 10) + 1}`,
+        title: `Project ${Math.floor(i / 10) + 1}`,
+        artworkUrl: projectTracks[0].artworkUrl,
+        tracks: projectTracks,
+        totalTracks: projectTracks.length,
+        isPopular: projectTracks.some(track => track.isPopular),
+      });
+    }
+    
     return allProjects.slice(
       (currentPage - 1) * projectsPerPage,
       currentPage * projectsPerPage
@@ -111,7 +121,7 @@ const ProjectsTab = ({ viewMode, sortBy }: ProjectsTabProps) => {
         onDragEnd={handleDragEnd}
       >
         <SortableContext 
-          items={projects}
+          items={projects.map(project => project.id)}
           strategy={horizontalListSortingStrategy}
         >
           <div className={viewMode === 'grid' 
@@ -159,7 +169,7 @@ const ProjectsTab = ({ viewMode, sortBy }: ProjectsTabProps) => {
   );
 };
 
-function SortableItem({ id, children }: { id: string; children: React.ReactNode }) {
+function SortableItem({ id, children }: { id: string | number; children: React.ReactNode }) {
   const {
     attributes,
     listeners,
