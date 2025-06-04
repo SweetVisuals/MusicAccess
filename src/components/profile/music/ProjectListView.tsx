@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Play, Pause, Heart, Download, MoreVertical, ListMusic, Plus, ChevronDown } from 'lucide-react';
+import { Play, Heart, Download, MoreVertical, ListMusic, Plus, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/@/ui/button';
 import { Badge } from '@/components/@/ui/badge';
 import { useAudioPlayer, type Track } from '@/contexts/audio-player-context';
@@ -29,21 +29,13 @@ interface ProjectListViewProps {
 }
 
 const ProjectListView = ({ project, id }: ProjectListViewProps) => {
-  const { currentTrack, playTrack, isPlaying, togglePlay } = useAudioPlayer();
+  const { currentTrack, playTrack } = useAudioPlayer();
   const [isExpanded, setIsExpanded] = useState(false);
-  
-  // Check if any track from this project is currently playing
-  const isProjectPlaying = currentTrack && project.tracks.some(track => track.id === currentTrack.id);
-  
-  // Get the currently playing track from this project, if any
-  const currentlyPlayingTrack = isProjectPlaying 
-    ? project.tracks.find(track => track.id === currentTrack?.id) 
-    : null;
 
   return (
     <div 
       id={id} 
-      className="group relative rounded-lg overflow-hidden bg-muted/50 hover:bg-muted transition-all duration-300 shadow-sm hover:shadow-md border"
+      className="group relative rounded-lg overflow-hidden bg-muted/50 hover:bg-muted transition-all duration-300 shadow-sm hover:shadow-md"
     >
       {/* Project Header */}
       <div 
@@ -58,30 +50,6 @@ const ProjectListView = ({ project, id }: ProjectListViewProps) => {
               alt={project.title}
               className="w-full h-full object-cover"
             />
-            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-              <Button 
-                size="icon" 
-                className="rounded-full w-10 h-10 bg-white text-black hover:bg-white/90"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (isProjectPlaying) {
-                    togglePlay();
-                  } else if (project.tracks.length > 0) {
-                    playTrack({
-                      ...project.tracks[0],
-                      projectTitle: project.title,
-                      artworkUrl: project.artworkUrl
-                    });
-                  }
-                }}
-              >
-                {isProjectPlaying && isPlaying ? (
-                  <Pause className="h-5 w-5" />
-                ) : (
-                  <Play className="h-5 w-5" />
-                )}
-              </Button>
-            </div>
           </div>
 
           {/* Project Info */}
@@ -92,11 +60,6 @@ const ProjectListView = ({ project, id }: ProjectListViewProps) => {
                 <p className="text-sm text-muted-foreground">
                   {project.totalTracks} tracks
                 </p>
-                {isProjectPlaying && currentlyPlayingTrack && (
-                  <p className="text-sm text-primary mt-1">
-                    Now playing: {currentlyPlayingTrack.title}
-                  </p>
-                )}
               </div>
               <div className="flex items-center gap-2">
                 {project.isPopular && (
@@ -181,19 +144,11 @@ const ProjectListView = ({ project, id }: ProjectListViewProps) => {
                       : 'hover:bg-black/90 hover:text-white hover:shadow-sm text-foreground/90'
                   }`}
                 >
-                  {currentTrack?.id === track.id && isPlaying ? (
-                    <Pause className={`h-4 w-4 ${
-                      currentTrack?.id === track.id 
-                        ? 'text-white' 
-                        : 'text-muted-foreground group-hover/track:text-white'
-                    }`} />
-                  ) : (
-                    <Play className={`h-4 w-4 ${
-                      currentTrack?.id === track.id 
-                        ? 'text-white' 
-                        : 'text-muted-foreground group-hover/track:text-white'
-                    }`} />
-                  )}
+                  <Play className={`h-4 w-4 ${
+                    currentTrack?.id === track.id 
+                      ? 'text-white' 
+                      : 'text-muted-foreground group-hover/track:text-white'
+                  }`} />
                   <span className="flex-1 truncate">{track.title}</span>
                   <span className={`text-xs tabular-nums ${
                     currentTrack?.id === track.id 
