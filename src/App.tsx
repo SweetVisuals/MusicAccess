@@ -161,3 +161,5 @@ function App() {
     </SidebarProvider>
   )
 }
+
+export default App;
