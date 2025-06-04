@@ -7,7 +7,7 @@ import { Input } from "@/components/@/ui/input"
 import { Badge } from "@/components/@/ui/badge"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/@/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/@/ui/tabs"
-import { Search, MessageSquare, Heart, Share2, Users, Music2, Filter, Plus, PlayCircle, Waveform } from "lucide-react"
+import { Search, MessageSquare, Heart, Share2, Users, Music2, Filter, Plus, PlayCircle, AudioWaveform as Waveform } from "lucide-react"
 
 const collaborationPosts = [
   {
