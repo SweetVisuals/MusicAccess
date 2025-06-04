@@ -6,6 +6,7 @@ import SignupPage from "@/app/auth/signup"
 import AuthCallback from "@/app/auth/callback"
 import ProfilePage from "@/app/user/user-profile"
 import ServicesPage from "@/app/dashboard/services"
+import BillingPage from "@/app/dashboard/billing"
 import FindTalentPage from "@/app/home/find-talent"
 import TutorialsPage from "@/app/home/tutorials"
 import MarketingPage from "@/app/home/marketing"
@@ -43,6 +44,7 @@ function App() {
       setShowLoader(false)
     }
   }, [isLoading])
+
   return (
     <SidebarProvider>
       {showLoader && <PageLoading />}
@@ -50,75 +52,82 @@ function App() {
         open={uploadDialogOpen}
         onOpenChange={setUploadDialogOpen}
         onUpload={async (files) => {
-          // TODO: Implement actual file upload logic
           console.log('Files to upload:', files)
         }}
       />
       <AudioPlayerProvider>
         <Routes>
-        <Route path="/" element={<Homepage />} />
-        <Route 
-          path="/dashboard" 
-          element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/user/dashboard" 
-          element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/auth/login" 
-          element={user ? <Navigate to="/user/dashboard" replace /> : <LoginPage />} 
-        />
-        <Route 
-          path="/auth/signup" 
-          element={user ? <Navigate to="/user/dashboard" replace /> : <SignupPage />} 
-        />
-        <Route path="/auth/callback" element={<AuthCallback />} />
-        <Route 
-          path="/user/user-profile" 
-          element={
-            <ProtectedRoute>
-              <ProfilePage />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/upload" 
-          element={
-            <ProtectedRoute>
-              <UploadPage />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/files" 
-          element={
-            <ProtectedRoute>
-              <FilesPage />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/dashboard/services" 
-          element={
-            <ProtectedRoute>
-              <ServicesPage />
-            </ProtectedRoute>
-          } 
-        />
-        <Route path="/find-talent" element={<FindTalentPage />} />
-        <Route path="/tutorials" element={<TutorialsPage />} />
-        <Route path="/marketing" element={<MarketingPage />} />
-        <Route path="/collaborate" element={<CollaboratePage />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="/" element={<Homepage />} />
+          <Route 
+            path="/dashboard" 
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/user/dashboard" 
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/dashboard/billing" 
+            element={
+              <ProtectedRoute>
+                <BillingPage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/auth/login" 
+            element={user ? <Navigate to="/user/dashboard" replace /> : <LoginPage />} 
+          />
+          <Route 
+            path="/auth/signup" 
+            element={user ? <Navigate to="/user/dashboard" replace /> : <SignupPage />} 
+          />
+          <Route path="/auth/callback" element={<AuthCallback />} />
+          <Route 
+            path="/user/user-profile" 
+            element={
+              <ProtectedRoute>
+                <ProfilePage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/upload" 
+            element={
+              <ProtectedRoute>
+                <UploadPage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/files" 
+            element={
+              <ProtectedRoute>
+                <FilesPage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/dashboard/services" 
+            element={
+              <ProtectedRoute>
+                <ServicesPage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route path="/find-talent" element={<FindTalentPage />} />
+          <Route path="/tutorials" element={<TutorialsPage />} />
+          <Route path="/marketing" element={<MarketingPage />} />
+          <Route path="/collaborate" element={<CollaboratePage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         <AudioPlayer />
       </AudioPlayerProvider>
