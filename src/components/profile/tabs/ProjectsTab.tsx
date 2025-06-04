@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -7,6 +7,7 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
+  UniqueIdentifier,
 } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -15,7 +16,7 @@ import {
   horizontalListSortingStrategy,
   useSortable,
 } from '@dnd-kit/sortable';
-import { LayoutGrid } from 'lucide-react';
+import { CSS } from '@dnd-kit/utilities';
 import TrackCard from '../music/TrackCard';
 import ProjectCard from '../music/ProjectCard';
 import ProjectListView from '../music/ProjectListView';
@@ -81,7 +82,6 @@ const ProjectsTab = ({ viewMode, sortBy }: ProjectsTabProps) => {
     return allProjects;
   }
 
-  const allProjects = generateAllProjects();
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
