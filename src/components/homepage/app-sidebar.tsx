@@ -20,7 +20,7 @@ import {
 import { NavDocuments } from "@/components/dashboard/layout/nav-documents"
 import { NavMain } from "@/components/dashboard/layout/nav-main"
 import { NavSecondary } from "@/components/dashboard/layout/nav-secondary"
-import { NavUser } from "@/components/dashboard/layout/nav-user"
+import { NavUser } from "@/components/homepage/nav-user"
 import { useAuth } from "@/contexts/auth-context"
 import {
   Sidebar,
@@ -124,7 +124,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               asChild
               className="data-[slot=sidebar-menu-button]:!p-1.5"
             >
-              <a href="#">
+              <a href="/">
                 <ArrowUpCircleIcon className="h-5 w-5" />
                 <span className="text-base font-semibold">Music Access.</span>
               </a>

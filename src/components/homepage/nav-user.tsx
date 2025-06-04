@@ -80,7 +80,7 @@ export function NavUser() {
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button size="lg\" variant="outline\" className="gap-2">
+          <Button size="lg" variant="outline" className="gap-2">
             <LogInIcon className="h-4 w-4" />
             <span>Login / Signup</span>
           </Button>
@@ -116,7 +116,7 @@ export function NavUser() {
           <span className="text-xs font-medium text-muted-foreground">
             Storage
           </span>
-          <span className="text-xs pb-2 font-medium text-muted-foreground">
+          <span className="text-xs font-medium text-muted-foreground">
             25% used
           </span>
         </div>
