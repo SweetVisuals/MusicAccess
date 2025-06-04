@@ -8,6 +8,7 @@ import {
   UserCircleIcon,
 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
+import { Link } from "react-router-dom"
 
 import { Button } from "@/components/@/ui/button"
 import {
@@ -89,16 +90,16 @@ export function NavUser() {
           sideOffset={4}
         >
           <DropdownMenuItem asChild>
-            <a href="/auth/login" className="w-full">
+            <Link to="/auth/login" className="w-full">
               <LogInIcon className="mr-2 h-4 w-4" />
               <span>Login</span>
-            </a>
+            </Link>
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
-            <a href="/auth/signup" className="w-full">
+            <Link to="/auth/signup" className="w-full">
               <UserPlusIcon className="mr-2 h-4 w-4" />
               <span>Sign Up</span>
-            </a>
+            </Link>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -157,22 +158,26 @@ export function NavUser() {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem>
-                <UserCircleIcon />
-                Account
+              <DropdownMenuItem asChild>
+                <Link to="/user/user-profile">
+                  <UserCircleIcon className="mr-2 h-4 w-4" />
+                  Account
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to="/dashboard/billing">
+                  <CreditCardIcon className="mr-2 h-4 w-4" />
+                  Billing
+                </Link>
               </DropdownMenuItem>
               <DropdownMenuItem>
-                <CreditCardIcon />
-                Billing
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <BellIcon />
+                <BellIcon className="mr-2 h-4 w-4" />
                 Notifications
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              <LogOutIcon />
+            <DropdownMenuItem onClick={() => authUser.signOut()}>
+              <LogOutIcon className="mr-2 h-4 w-4" />
               Log out
             </DropdownMenuItem>
           </DropdownMenuContent>
