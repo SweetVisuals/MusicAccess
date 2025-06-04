@@ -1,7 +1,6 @@
 import { useState, useRef } from 'react';
 import { 
   File, 
-  Folder, 
   Music, 
   Video, 
   FileText,
