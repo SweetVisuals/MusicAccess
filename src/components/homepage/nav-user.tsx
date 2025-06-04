@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react"
 import { LogInIcon, UserPlusIcon } from "lucide-react"
+import { supabase } from "@/lib/supabase"
 import {
   BellIcon,
   CreditCardIcon,
@@ -7,7 +8,6 @@ import {
   MoreVerticalIcon,
   UserCircleIcon,
 } from "lucide-react"
-import { supabase } from "@/lib/supabase"
 import { Link, useNavigate } from "react-router-dom"
 
 import { Button } from "@/components/@/ui/button"
@@ -32,6 +32,7 @@ import {
   useSidebar,
 } from "@/components/@/ui/sidebar"
 import { useAuth } from "@/contexts/auth-context"
+import { Progress } from "@/components/@/ui/progress"
 
 export function NavUser() {
   const { isMobile } = useSidebar()
@@ -79,7 +80,7 @@ export function NavUser() {
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button size="lg\" variant="outline\" className="gap-2">
+          <Button size="lg" variant="outline" className="gap-2">
             <LogInIcon className="h-4 w-4" />
             <span>Login / Signup</span>
           </Button>
@@ -109,6 +110,22 @@ export function NavUser() {
 
   return (
     <SidebarMenu>
+      {/* Storage Progress Bar */}
+      <div className="px-4 py-3">
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-xs font-medium text-muted-foreground">
+            Storage
+          </span>
+          <span className="text-xs pb-2 font-medium text-muted-foreground">
+            25% used
+          </span>
+        </div>
+        <Progress 
+          value={25} 
+          className="h-2 bg-gray-200 dark:bg-gray-700 [&>div]:bg-blue-600 dark:[&>div]:bg-blue-400"
+        />
+      </div>
+
       <SidebarMenuItem>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
