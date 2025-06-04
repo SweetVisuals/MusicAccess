@@ -6,8 +6,6 @@ import App from "./App"
 import { AuthProvider } from "./contexts/auth-context"
 import { ThemeProvider } from "./components/theme-provider"
 import "./styles/global.css"
-import "./styles/themes/light.css"
-import "./styles/themes/dark.css"
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
