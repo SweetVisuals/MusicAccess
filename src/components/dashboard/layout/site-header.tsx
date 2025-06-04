@@ -2,6 +2,7 @@ import { Separator } from "@/components/@/ui/separator"
 import { SidebarTrigger } from "@/components/@/ui/sidebar"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/@/ui/avatar"
 import { Button } from "@/components/@/ui/button"
+import { Badge } from "@/components/@/ui/badge"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,18 +34,18 @@ export function SiteHeader() {
 
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary rounded-lg">
+            <Badge variant="default" className="flex items-center gap-2 bg-primary/10 text-primary hover:bg-primary/20">
               <Wallet className="h-4 w-4" />
-              <span className="font-medium">$2,458.50</span>
-            </div>
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-violet-500/10 text-violet-500 rounded-lg">
+              <span>$2,458.50</span>
+            </Badge>
+            <Badge variant="default" className="flex items-center gap-2 bg-violet-500/10 text-violet-500 hover:bg-violet-500/20">
               <Gem className="h-4 w-4" />
-              <span className="font-medium">42</span>
-            </div>
+              <span>42</span>
+            </Badge>
           </div>
           <ThemeToggle />
           {!user ? (
-            <Button asChild variant="ghost\" size="sm">
+            <Button asChild variant="ghost" size="sm">
               <a href="/auth/login">
                 Login
               </a>
