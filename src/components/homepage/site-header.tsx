@@ -13,6 +13,7 @@ import {
 } from "@/components/@/ui/dropdown-menu"
 import { Bell, Settings, LogOut, User, MessageSquare, LayoutGrid } from "lucide-react"
 import { useAuth } from "@/contexts/auth-context"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 export function SiteHeader() {
   const { user, isLoading, signOut } = useAuth()
@@ -33,6 +34,7 @@ export function SiteHeader() {
         </div>
 
         <div className="flex items-center gap-4">
+          <ThemeToggle />
           {!user ? (
             <Button asChild variant="ghost" size="sm">
               <a href="/auth/login">
@@ -41,9 +43,9 @@ export function SiteHeader() {
             </Button>
           ) : (
             <>
-          <Button variant="ghost" size="sm" asChild>
-            <a href="/upload">Upload</a>
-          </Button>
+              <Button variant="ghost" size="sm" asChild>
+                <a href="/upload">Upload</a>
+              </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="relative">
