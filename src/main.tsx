@@ -4,7 +4,9 @@ import { BrowserRouter } from "react-router-dom"
 import { Toaster } from "sonner"
 import App from "./App"
 import { AuthProvider } from "./contexts/auth-context"
-import "./index.css"
+import "./styles/global.css"
+import "./styles/themes/light.css"
+import "./styles/themes/dark.css"
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
