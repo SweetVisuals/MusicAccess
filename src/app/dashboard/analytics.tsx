@@ -1,10 +1,10 @@
 import { AppSidebar } from "@/components/dashboard/layout/app-sidebar"
 import { SidebarInset, SidebarProvider } from "@/components/@/ui/sidebar"
 import { SiteHeader } from "@/components/dashboard/layout/site-header"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/@/ui/card"
 import { ChartAreaInteractive } from "@/components/dashboard/layout/chart-area-interactive"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/@/ui/button"
+import { Badge } from "@/components/@/ui/badge"
 import { TrendingUp, TrendingDown, Users, DollarSign, Music2, PlayCircle, ChevronLeft, ChevronRight, Calendar, Filter } from 'lucide-react'
 
 export default function AnalyticsPage() {
