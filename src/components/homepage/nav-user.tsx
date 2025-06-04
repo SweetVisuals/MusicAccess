@@ -35,7 +35,7 @@ import { useAuth } from "@/contexts/auth-context"
 
 export function NavUser() {
   const { isMobile } = useSidebar()
-  const { user: authUser, isLoading: isAuthLoading } = useAuth()
+  const { user: authUser, isLoading: isAuthLoading, signOut } = useAuth()
   const [profile, setProfile] = useState<{
     username: string | null
     email: string | null
@@ -78,7 +78,7 @@ export function NavUser() {
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button size="lg\" variant="outline\" className="gap-2">
+          <Button size="lg" variant="outline" className="gap-2">
             <LogInIcon className="h-4 w-4" />
             <span>Login / Signup</span>
           </Button>
@@ -176,7 +176,7 @@ export function NavUser() {
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => authUser.signOut()}>
+            <DropdownMenuItem onClick={() => signOut()}>
               <LogOutIcon className="mr-2 h-4 w-4" />
               Log out
             </DropdownMenuItem>
