@@ -90,52 +90,51 @@ export default function Page() {
               </Card>
             </div>
 
-            {/* Charts */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-              <Card className="col-span-4">
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle>{chartMetrics[currentMetric].label}</CardTitle>
-                    <CardDescription>
-                      Analytics over time
-                    </CardDescription>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={previousMetric}
-                      className="h-8 w-8"
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={nextMetric}
-                      className="h-8 w-8"
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent className="pl-2">
-                  <ChartAreaInteractive />
-                </CardContent>
-              </Card>
-
-              <Card className="col-span-3">
-                <CardHeader>
-                  <CardTitle>Service Orders</CardTitle>
+            {/* Chart */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>{chartMetrics[currentMetric].label}</CardTitle>
                   <CardDescription>
-                    Manage your incoming service requests
+                    Analytics over time
                   </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <DataTable data={data} />
-                </CardContent>
-              </Card>
-            </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={previousMetric}
+                    className="h-8 w-8"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={nextMetric}
+                    className="h-8 w-8"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="pl-2">
+                <ChartAreaInteractive />
+              </CardContent>
+            </Card>
+
+            {/* Service Orders */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Service Orders</CardTitle>
+                <CardDescription>
+                  Manage your incoming service requests
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <DataTable data={data} />
+              </CardContent>
+            </Card>
           </div>
         </div>
       </SidebarInset>
