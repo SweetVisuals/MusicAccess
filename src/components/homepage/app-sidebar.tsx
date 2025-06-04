@@ -1,27 +1,8 @@
 import * as React from "react"
-import {
-  ArrowUpCircleIcon,
-  BarChartIcon,
-  CameraIcon,
-  ClipboardListIcon,
-  DatabaseIcon,
-  FileCodeIcon,
-  FileIcon,
-  FileTextIcon,
-  FolderIcon,
-  HelpCircleIcon,
-  LayoutDashboardIcon,
-  ListIcon,
-  SearchIcon,
-  SettingsIcon,
-  UsersIcon,
-} from "lucide-react"
+import { ArrowUpCircleIcon } from "lucide-react"
 
-import { NavDocuments } from "@/components/dashboard/layout/nav-documents"
-import { NavMain } from "@/components/dashboard/layout/nav-main"
-import { NavSecondary } from "@/components/dashboard/layout/nav-secondary"
-import { NavUser } from "@/components/dashboard/layout/nav-user"
-import { useAuth } from "@/contexts/auth-context"
+import { NavMain } from "@/components/homepage/nav-main"
+import { NavUser } from "@/components/homepage/nav-user"
 import {
   Sidebar,
   SidebarContent,
@@ -35,86 +16,43 @@ import {
 const data = {
   navMain: [
     {
-      title: "Discover",
+      title: "Home",
       url: "/",
-      icon: SearchIcon,
-      items: [
-        {
-          title: "Trending",
-          url: "#",
-        },
-        {
-          title: "Genres",
-          url: "#",
-        },
-        {
-          title: "... More",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Tutorials",
-      url: "/tutorials",
-      icon: FileTextIcon,
     },
     {
       title: "Find Talent",
       url: "/find-talent",
-      icon: UsersIcon,
+    },
+    {
+      title: "Tutorials",
+      url: "/tutorials",
     },
     {
       title: "Marketing",
       url: "/marketing",
-      icon: BarChartIcon,
     },
     {
       title: "Collaborate",
       url: "/collaborate",
-      icon: UsersIcon,
     },
   ],
-  navClouds: [],
   navSecondary: [
     {
       title: "Settings",
       url: "#",
-      icon: SettingsIcon,
     },
     {
       title: "Get Help",
       url: "#",
-      icon: HelpCircleIcon,
     },
     {
       title: "Search",
       url: "#",
-      icon: SearchIcon,
     },
   ],
-  documents: [
-    {
-      name: "Trending",
-      url: "#",
-      icon: DatabaseIcon,
-    },
-    {
-      name: "Genres",
-      url: "#",
-      icon: ClipboardListIcon,
-    },
-  ],
-}
+};
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { user, isLoading } = useAuth()
-
-  if (isLoading) return null
-
-  const filteredNavMain = user 
-    ? data.navMain 
-    : data.navMain.filter(item => item.title === "Discover")
-
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
@@ -133,13 +71,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={filteredNavMain} showQuickActions={!!user} />
-        {user && (
-          <>
-            <NavDocuments items={data.documents} />
-            <NavSecondary items={data.navSecondary} className="mt-auto" />
-          </>
-        )}
+        <NavMain items={data.navMain} />
       </SidebarContent>
       <SidebarFooter>
         <NavUser />
