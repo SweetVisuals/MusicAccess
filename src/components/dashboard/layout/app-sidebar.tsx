@@ -19,7 +19,7 @@ import {
 
 import { NavMain } from "@/components/dashboard/layout/nav-main"
 import { NavSecondary } from "@/components/dashboard/layout/nav-secondary"
-import { NavUser } from "@/components/dashboard/layout/nav-user"
+import { NavUser } from "@/components/dashboard/nav-user"
 import { Progress } from "@/components/@/ui/progress"
 import {
   Sidebar,
@@ -39,19 +39,19 @@ const data = {
       icon: LayoutDashboardIcon,
     },
     {
+      title: "Projects",
+      url: "/dashboard/projects",
+      icon: FolderIcon,
+    },
+    {
       title: "Services",
       url: "/dashboard/services",
       icon: DatabaseIcon,
     },
     {
       title: "Analytics",
-      url: "#",
+      url: "/dashboard/analytics",
       icon: BarChartIcon,
-    },
-    {
-      title: "Projects",
-      url: "#",
-      icon: FolderIcon,
     },
     {
       title: "Collaborations",
@@ -82,54 +82,6 @@ const data = {
       title: "Payments",
       url: "#",
       icon: ListIcon,
-    },
-  ],
-  navClouds: [
-    {
-      title: "Capture",
-      icon: CameraIcon,
-      isActive: true,
-      url: "#",
-      items: [
-        {
-          title: "Active Proposals",
-          url: "#",
-        },
-        {
-          title: "Archived",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Proposal",
-      icon: FileTextIcon,
-      url: "#",
-      items: [
-        {
-          title: "Active Proposals",
-          url: "#",
-        },
-        {
-          title: "Archived",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Prompts",
-      icon: FileCodeIcon,
-      url: "#",
-      items: [
-        {
-          title: "Active Proposals",
-          url: "#",
-        },
-        {
-          title: "Archived",
-          url: "#",
-        },
-      ],
     },
   ],
   navSecondary: [
