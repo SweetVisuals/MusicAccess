@@ -8,7 +8,7 @@ import {
   UserCircleIcon,
 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 
 import { Button } from "@/components/@/ui/button"
 import {
@@ -36,6 +36,7 @@ import { useAuth } from "@/contexts/auth-context"
 export function NavUser() {
   const { isMobile } = useSidebar()
   const { user: authUser, isLoading: isAuthLoading, signOut } = useAuth()
+  const navigate = useNavigate()
   const [profile, setProfile] = useState<{
     username: string | null
     email: string | null
@@ -78,7 +79,7 @@ export function NavUser() {
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button size="lg\" variant="outline\" className="gap-2">
+          <Button size="lg" variant="outline" className="gap-2">
             <LogInIcon className="h-4 w-4" />
             <span>Login / Signup</span>
           </Button>
@@ -158,17 +159,13 @@ export function NavUser() {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem asChild>
-                <Link to="/user/user-profile">
-                  <UserCircleIcon className="mr-2 h-4 w-4" />
-                  Account
-                </Link>
+              <DropdownMenuItem onClick={() => navigate('/user/user-profile')}>
+                <UserCircleIcon className="mr-2 h-4 w-4" />
+                Account
               </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link to="/dashboard/billing">
-                  <CreditCardIcon className="mr-2 h-4 w-4" />
-                  Billing
-                </Link>
+              <DropdownMenuItem onClick={() => navigate('/dashboard/billing')}>
+                <CreditCardIcon className="mr-2 h-4 w-4" />
+                Billing
               </DropdownMenuItem>
               <DropdownMenuItem>
                 <BellIcon className="mr-2 h-4 w-4" />
