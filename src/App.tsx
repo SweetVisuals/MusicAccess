@@ -7,6 +7,7 @@ import AuthCallback from "@/app/auth/callback"
 import ProfilePage from "@/app/user/user-profile"
 import ServicesPage from "@/app/dashboard/services"
 import BillingPage from "@/app/dashboard/billing"
+import AnalyticsPage from "@/app/dashboard/analytics"
 import FindTalentPage from "@/app/home/find-talent"
 import TutorialsPage from "@/app/home/tutorials"
 import MarketingPage from "@/app/home/marketing"
@@ -83,6 +84,14 @@ function App() {
             } 
           />
           <Route 
+            path="/dashboard/analytics" 
+            element={
+              <ProtectedRoute>
+                <AnalyticsPage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
             path="/auth/login" 
             element={user ? <Navigate to="/user/dashboard\" replace /> : <LoginPage />} 
           />
@@ -134,5 +143,3 @@ function App() {
     </SidebarProvider>
   )
 }
-
-export default App
