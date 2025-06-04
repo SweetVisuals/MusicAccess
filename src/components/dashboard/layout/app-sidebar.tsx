@@ -44,6 +44,11 @@ const data = {
       icon: FolderIcon,
     },
     {
+      title: "Contracts",
+      url: "/dashboard/contracts",
+      icon: FileTextIcon,
+    },
+    {
       title: "Services",
       url: "/dashboard/services",
       icon: DatabaseIcon,
@@ -72,11 +77,6 @@ const data = {
       title: "Sales",
       url: "#",
       icon: ClipboardListIcon,
-    },
-    {
-      title: "Contracts",
-      url: "#",
-      icon: FileCodeIcon,
     },
     {
       title: "Payments",

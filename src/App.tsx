@@ -9,6 +9,7 @@ import ServicesPage from "@/app/dashboard/services"
 import BillingPage from "@/app/dashboard/billing"
 import AnalyticsPage from "@/app/dashboard/analytics"
 import ProjectsPage from "@/app/dashboard/projects"
+import ContractsPage from "@/app/dashboard/contracts"
 import FindTalentPage from "@/app/home/find-talent"
 import TutorialsPage from "@/app/home/tutorials"
 import MarketingPage from "@/app/home/marketing"
@@ -101,6 +102,14 @@ function App() {
             } 
           />
           <Route 
+            path="/dashboard/contracts" 
+            element={
+              <ProtectedRoute>
+                <ContractsPage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
             path="/auth/login" 
             element={user ? <Navigate to="/user/dashboard\" replace /> : <LoginPage />} 
           />
@@ -152,5 +161,3 @@ function App() {
     </SidebarProvider>
   )
 }
-
-export default App
