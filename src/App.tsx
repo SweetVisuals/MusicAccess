@@ -93,13 +93,13 @@ function App() {
           />
           <Route 
             path="/auth/login" 
-            element={user ? <Navigate to="/user/dashboard\" replace /> : <LoginPage />} 
+            element={user ? <Navigate to="/user/dashboard" replace /> : <LoginPage />} 
           />
           <Route 
             path="/auth/signup" 
-            element={user ? <Navigate to="/user/dashboard\" replace /> : <SignupPage />} 
+            element={user ? <Navigate to="/user/dashboard" replace /> : <SignupPage />} 
           />
-          <Route path="/auth/callback\" element={<AuthCallback />} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
           <Route 
             path="/user/user-profile" 
             element={
@@ -136,7 +136,7 @@ function App() {
           <Route path="/tutorials" element={<TutorialsPage />} />
           <Route path="/marketing" element={<MarketingPage />} />
           <Route path="/collaborate" element={<CollaboratePage />} />
-          <Route path="*" element={<Navigate to="/\" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         <AudioPlayer />
       </AudioPlayerProvider>
