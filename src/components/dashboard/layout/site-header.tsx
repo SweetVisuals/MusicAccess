@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/@/ui/dropdown-menu"
-import { Bell, Settings, LogOut, User, MessageSquare, LayoutGrid, Wallet } from "lucide-react"
+import { Bell, Settings, LogOut, User, MessageSquare, LayoutGrid, Wallet, Gem } from "lucide-react"
 import { useAuth } from "@/contexts/auth-context"
 import { ThemeToggle } from "@/components/theme-toggle"
 
@@ -32,13 +32,19 @@ export function SiteHeader() {
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary rounded-lg">
-            <Wallet className="h-4 w-4" />
-            <span className="font-medium">$2,458.50</span>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary rounded-lg">
+              <Wallet className="h-4 w-4" />
+              <span className="font-medium">$2,458.50</span>
+            </div>
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-violet-500/10 text-violet-500 rounded-lg">
+              <Gem className="h-4 w-4" />
+              <span className="font-medium">42</span>
+            </div>
           </div>
           <ThemeToggle />
           {!user ? (
-            <Button asChild variant="ghost\" size="sm">
+            <Button asChild variant="ghost" size="sm">
               <a href="/auth/login">
                 Login
               </a>
