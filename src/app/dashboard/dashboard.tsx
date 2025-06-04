@@ -1,13 +1,32 @@
+import { useState } from "react"
 import { AppSidebar } from "@/components/dashboard/layout/app-sidebar"
 import { SidebarInset, SidebarProvider } from "@/components/@/ui/sidebar"
 import { SiteHeader } from "@/components/dashboard/layout/site-header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ChartAreaInteractive } from "@/components/dashboard/layout/chart-area-interactive"
 import { DataTable } from "@/components/dashboard/data-table"
-import { TrendingUp, TrendingDown, Users, DollarSign, Music, PlayCircle } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { TrendingUp, TrendingDown, Users, DollarSign, Music, PlayCircle, ChevronLeft, ChevronRight } from "lucide-react"
 import data from "./data.json"
 
+const chartMetrics = [
+  { id: 'revenue', label: 'Revenue' },
+  { id: 'plays', label: 'Total Plays' },
+  { id: 'orders', label: 'Service Orders' },
+  { id: 'clients', label: 'Active Clients' }
+];
+
 export default function Page() {
+  const [currentMetric, setCurrentMetric] = useState(0);
+
+  const nextMetric = () => {
+    setCurrentMetric((prev) => (prev + 1) % chartMetrics.length);
+  };
+
+  const previousMetric = () => {
+    setCurrentMetric((prev) => (prev - 1 + chartMetrics.length) % chartMetrics.length);
+  };
+
   return (
     <SidebarProvider>
       <AppSidebar variant="inset" />
@@ -74,8 +93,31 @@ export default function Page() {
             {/* Charts */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
               <Card className="col-span-4">
-                <CardHeader>
-                  <CardTitle>Overview</CardTitle>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle>{chartMetrics[currentMetric].label}</CardTitle>
+                    <CardDescription>
+                      Analytics over time
+                    </CardDescription>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={previousMetric}
+                      className="h-8 w-8"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={nextMetric}
+                      className="h-8 w-8"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent className="pl-2">
                   <ChartAreaInteractive />
@@ -84,9 +126,9 @@ export default function Page() {
 
               <Card className="col-span-3">
                 <CardHeader>
-                  <CardTitle>Recent Sales</CardTitle>
+                  <CardTitle>Service Orders</CardTitle>
                   <CardDescription>
-                    You made 265 sales this month.
+                    Manage your incoming service requests
                   </CardDescription>
                 </CardHeader>
                 <CardContent>

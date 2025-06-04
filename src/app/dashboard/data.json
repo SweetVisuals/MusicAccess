@@ -1,67 +1,34 @@
 [
   {
-    "id": 1,
-    "project": "Summer Mix 2025",
-    "type": "Music Production",
-    "status": "In Progress",
-    "collaborators": 3,
-    "lastUpdated": "2025-03-05",
-    "tracks": 8,
-    "versions": 4,
-    "sales": 42,
-    "visitors": 186,
-    "profileVisits": 120
+    "id": "1",
+    "client": "John Doe",
+    "service": "Mix & Master",
+    "price": 299.99,
+    "status": "pending",
+    "date": "2024-03-15"
   },
   {
-    "id": 2,
-    "project": "Album Master",
-    "type": "Album Production",
-    "status": "Review",
-    "collaborators": 5,
-    "lastUpdated": "2025-03-04",
-    "tracks": 12,
-    "versions": 7,
-    "sales": 85,
-    "visitors": 305,
-    "profileVisits": 210
+    "id": "2", 
+    "client": "Jane Smith",
+    "service": "Vocal Recording",
+    "price": 149.99,
+    "status": "accepted",
+    "date": "2024-03-14"
   },
   {
-    "id": 3,
-    "project": "Single Release",
-    "type": "Single Production",
-    "status": "Completed",
-    "collaborators": 2,
-    "lastUpdated": "2025-03-01",
-    "tracks": 1,
-    "versions": 3,
-    "sales": 63,
-    "visitors": 237,
-    "profileVisits": 180
+    "id": "3",
+    "client": "Mike Johnson",
+    "service": "Music Production",
+    "price": 499.99,
+    "status": "completed",
+    "date": "2024-03-13"
   },
   {
-    "id": 4,
-    "project": "Film Score",
-    "type": "Scoring Project",
-    "status": "In Progress",
-    "collaborators": 4,
-    "lastUpdated": "2025-03-06",
-    "tracks": 15,
-    "versions": 9,
-    "sales": 38,
-    "visitors": 73,
-    "profileVisits": 95
-  },
-  {
-    "id": 5,
-    "project": "Podcast Theme",
-    "type": "Audio Production",
-    "status": "Draft",
-    "collaborators": 1,
-    "lastUpdated": "2025-03-03",
-    "tracks": 2,
-    "versions": 1,
-    "sales": 71,
-    "visitors": 209,
-    "profileVisits": 150
+    "id": "4",
+    "client": "Sarah Williams",
+    "service": "Sound Design",
+    "price": 199.99,
+    "status": "rejected",
+    "date": "2024-03-12"
   }
 ]
