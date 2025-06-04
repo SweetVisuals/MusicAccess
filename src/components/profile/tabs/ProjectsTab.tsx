@@ -1,3 +1,4 @@
+```typescript
 import React, { useState } from 'react';
 import {
   DndContext,
@@ -18,8 +19,9 @@ import {
 import { LayoutGrid } from 'lucide-react';
 import TrackCard from '../music/TrackCard';
 import ProjectCard from '../music/ProjectCard';
+import ProjectListView from '../music/ProjectListView';
 import useProfile from '@/hooks/useProfile';
-import { Button } from '@/components/@/ui/button';
+import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface ProjectsTabProps {
@@ -99,38 +101,36 @@ const ProjectsTab = ({ viewMode, sortBy }: ProjectsTabProps) => {
       });
     }
   }
+
   const totalPages = Math.ceil(allProjects.length / projectsPerPage);
 
   return (
     <div className="space-y-4">
-      {viewMode === 'grid' ? (
-        <DndContext 
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
+      <DndContext 
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext 
+          items={projects}
+          strategy={horizontalListSortingStrategy}
         >
-          <SortableContext 
-            items={projects}
-            strategy={horizontalListSortingStrategy}
-          >
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {projects.map((project) => (
-                <SortableItem key={project.id} id={project.id}>
+          <div className={viewMode === 'grid' 
+            ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
+            : "flex flex-col gap-4"
+          }>
+            {projects.map((project) => (
+              <SortableItem key={project.id} id={project.id}>
+                {viewMode === 'grid' ? (
                   <ProjectCard project={project} variant="grid" id={project.id} />
-                </SortableItem>
-              ))}
-            </div>
-          </SortableContext>
-        </DndContext>
-      ) : (
-        <div className="space-y-2">
-          {projects.map((project) => (
-            project.tracks.map((track) => (
-              <TrackCard key={track.id} track={track} variant="list" />
-            ))
-          ))}
-        </div>
-      )}
+                ) : (
+                  <ProjectListView project={project} id={project.id} />
+                )}
+              </SortableItem>
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
 
       {/* Pagination controls */}
       {totalPages > 1 && (
@@ -184,3 +184,4 @@ function SortableItem({ id, children }: { id: string; children: React.ReactNode 
 }
 
 export default ProjectsTab;
+```
