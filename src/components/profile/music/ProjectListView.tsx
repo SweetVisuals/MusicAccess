@@ -1,4 +1,3 @@
-```typescript
 import { Play, Heart, Download, MoreVertical, ListMusic, Plus } from 'lucide-react';
 import { Button } from '@/components/@/ui/button';
 import { Badge } from '@/components/@/ui/badge';
@@ -105,19 +104,19 @@ const ProjectListView = ({ project, id }: ProjectListViewProps) => {
                     });
                   }, 100);
                 }}
-                className={\`w-full flex items-center gap-3 px-3 py-2 rounded-md transition-all duration-200 ease-in-out group/track text-left ${
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-md transition-all duration-200 ease-in-out group/track text-left ${
                   currentTrack?.id === track.id 
                     ? 'bg-black text-white font-medium shadow-lg' 
                     : 'hover:bg-black/90 hover:text-white hover:shadow-sm text-foreground/90'
                 }`}
               >
-                <Play className={\`h-4 w-4 ${
+                <Play className={`h-4 w-4 ${
                   currentTrack?.id === track.id 
                     ? 'text-white' 
                     : 'text-muted-foreground group-hover/track:text-white'
                 }`} />
                 <span className="flex-1 truncate">{track.title}</span>
-                <span className={\`text-xs tabular-nums ${
+                <span className={`text-xs tabular-nums ${
                   currentTrack?.id === track.id 
                     ? 'text-white/90' 
                     : 'text-muted-foreground/75 group-hover/track:text-white/90'
@@ -141,4 +140,3 @@ const ProjectListView = ({ project, id }: ProjectListViewProps) => {
 };
 
 export default ProjectListView;
-```
