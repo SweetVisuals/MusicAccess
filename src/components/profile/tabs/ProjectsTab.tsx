@@ -1,4 +1,3 @@
-```typescript
 import React, { useState } from 'react';
 import {
   DndContext,
@@ -58,9 +57,9 @@ const ProjectsTab = ({ viewMode, sortBy }: ProjectsTabProps) => {
   function generateAllProjects() {
     // Sample track data - would normally come from API
     const allTracks = Array.from({ length: stats.tracks }, (_, i) => ({
-      id: \`track-${i + 1}`,
-      title: \`Track ${i + 1}`,
-      duration: \`${Math.floor(Math.random() * 4) + 2}:${Math.floor(Math.random() * 60).toString().padStart(2, '0')}`,
+      id: `track-${i + 1}`,
+      title: `Track ${i + 1}`,
+      duration: `${Math.floor(Math.random() * 4) + 2}:${Math.floor(Math.random() * 60).toString().padStart(2, '0')}`,
       streams: Math.floor(Math.random() * 10000),
       artworkUrl: 'https://images.pexels.com/photos/5077069/pexels-photo-5077069.jpeg',
       isPopular: Math.random() > 0.7,
@@ -71,8 +70,8 @@ const ProjectsTab = ({ viewMode, sortBy }: ProjectsTabProps) => {
     for (let i = 0; i < allTracks.length; i += 10) {
       const projectTracks = allTracks.slice(i, i + 10);
       allProjects.push({
-        id: \`project-${Math.floor(i / 10) + 1}`,
-        title: \`Project ${Math.floor(i / 10) + 1}`,
+        id: `project-${Math.floor(i / 10) + 1}`,
+        title: `Project ${Math.floor(i / 10) + 1}`,
         artworkUrl: projectTracks[0].artworkUrl,
         tracks: projectTracks,
         totalTracks: projectTracks.length,
@@ -171,7 +170,7 @@ function SortableItem({ id, children }: { id: string; children: React.ReactNode 
   } = useSortable({ id });
 
   const style = {
-    transform: transform ? \`translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
+    transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
     transition,
     zIndex: isDragging ? 1 : undefined,
   };
@@ -184,4 +183,3 @@ function SortableItem({ id, children }: { id: string; children: React.ReactNode 
 }
 
 export default ProjectsTab;
-```
