@@ -11,12 +11,13 @@ import {
   Pin,
   Star,
   MoreVertical,
-  X
+  X,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react';
 import { Button } from '../@/ui/button';
 import { Input } from '../@/ui/input';
 import { Separator } from '../@/ui/separator';
-import { Progress } from '../@/ui/progress';
 import { cn } from '../@/lib/utils';
 import { useToast } from '../../hooks/use-toast';
 import { useDrag, useDrop } from 'react-dnd';
@@ -104,6 +105,7 @@ export function UnifiedFileBrowser({ initialFiles = demoFiles }: UnifiedFileBrow
   const [newFolderDialogOpen, setNewFolderDialogOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const [currentPath, setCurrentPath] = useState<string[]>([]);
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
 
   const handleCreateFolder = () => {
     if (!newFolderName.trim()) return;
@@ -171,86 +173,211 @@ export function UnifiedFileBrowser({ initialFiles = demoFiles }: UnifiedFileBrow
     handleFileUpload();
   };
 
+  const toggleFolder = (folderId: string) => {
+    setExpandedFolders(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(folderId)) {
+        newSet.delete(folderId);
+      } else {
+        newSet.add(folderId);
+      }
+      return newSet;
+    });
+  };
+
+  const renderFileTree = (items: FileItem[], depth = 0, parentPath: string[] = []) => {
+    return items.map(item => {
+      const isFolder = item.type === 'folder';
+      const isExpanded = expandedFolders.has(item.id);
+      const currentPath = [...parentPath, item.name];
+      
+      return (
+        <div key={item.id} style={{ paddingLeft: `${depth * 16}px` }}>
+          <div 
+            className={`flex items-center p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer ${
+              selectedPath.join('/') === currentPath.join('/') ? 'bg-blue-100 dark:bg-blue-900/30' : ''
+            }`}
+            onClick={() => {
+              setSelectedPath(currentPath);
+              if (isFolder) {
+                toggleFolder(item.id);
+              }
+            }}
+          >
+            {isFolder && (
+              <button 
+                className="mr-1 w-4 h-4 flex items-center justify-center text-gray-500"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleFolder(item.id);
+                }}
+              >
+                {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+              </button>
+            )}
+            {isFolder ? (
+              <Folder className="h-4 w-4 text-blue-500 mr-2" />
+            ) : (
+              <Music className="h-4 w-4 text-purple-500 mr-2" />
+            )}
+            <span className="text-sm flex-1 truncate">{item.name}</span>
+            {item.size && <span className="text-xs text-gray-500">{item.size}</span>}
+          </div>
+          
+          {isFolder && isExpanded && item.children && (
+            <div className="ml-2">
+              {renderFileTree(item.children, depth + 1, currentPath)}
+            </div>
+          )}
+        </div>
+      );
+    });
+  };
+
   return (
     <DndProvider backend={HTML5Backend}>
-      <div className="flex h-full">
-        {/* Sidebar with filters */}
-        <div className="w-64 space-y-4 p-4 border-r">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search files..."
-              className="pl-8"
-            />
-          </div>
-
-          <div>
-            <Button
-              className="w-full justify-start gap-2"
-              onClick={handleUploadClick}
-            >
-              <Upload className="h-4 w-4" />
-              <span>Upload Files</span>
-              <input
-                type="file"
-                ref={fileInputRef}
-                className="hidden"
-                onChange={handleFileUpload}
-                multiple
-                accept="audio/*"
-              />
-            </Button>
-            
-            <Button
-              variant="outline"
-              className="w-full justify-start gap-2 mt-2"
-              onClick={() => setNewFolderDialogOpen(true)}
-            >
-              <Plus className="h-4 w-4" />
-              <span>New Folder</span>
-            </Button>
-          </div>
-
-          <Separator />
-
-          <div className="space-y-1">
-            <Button 
-              variant="ghost"
-              className="w-full justify-start gap-2"
-            >
-              <Music className="h-4 w-4" />
-              <span>All Audio Files</span>
-            </Button>
-          </div>
-          
-          <Separator />
-          
-          <div>
-            <h3 className="text-sm font-medium mb-2">Storage</h3>
-            <div className="relative h-2 w-full rounded-full bg-gray-200 overflow-hidden">
-              <div 
-                className="absolute top-0 left-0 h-full rounded-full" 
-                style={{ width: '68%', backgroundColor: '#3b82f6' }}
-              />
+      <div className="flex h-full rounded-lg overflow-hidden border">
+        {/* Sidebar with folders */}
+        <div className="w-64 bg-gray-50 dark:bg-gray-900 border-r">
+          <div className="p-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-medium">Favorites</h3>
+              <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                <ChevronDown className="h-3 w-3" />
+              </Button>
             </div>
-            <p className="text-sm text-muted-foreground mt-2">
-              6.8 GB of 10 GB used
-            </p>
+            
+            <div className="space-y-1">
+              <div className="flex items-center p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer">
+                <Music className="h-4 w-4 text-blue-500 mr-2" />
+                <span className="text-sm">All Audio</span>
+              </div>
+              <div className="flex items-center p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer">
+                <Star className="h-4 w-4 text-yellow-500 mr-2" />
+                <span className="text-sm">Favorites</span>
+              </div>
+            </div>
+
+            <Separator />
+            
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-medium">Locations</h3>
+              <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                <ChevronDown className="h-3 w-3" />
+              </Button>
+            </div>
+            
+            <div className="space-y-1">
+              {renderFileTree(fileItems)}
+            </div>
+            
+            <div className="pt-2">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="w-full justify-start text-sm"
+                onClick={() => setNewFolderDialogOpen(true)}
+              >
+                <Plus className="h-3.5 w-3.5 mr-2" />
+                New Folder
+              </Button>
+            </div>
           </div>
         </div>
 
-        {/* Main file browser area */}
-        <div className="flex-1 flex flex-col">
-          <FileManager 
-            initialFiles={fileItems}
-            onItemClick={(itemName, columnIndex) => {
-              const newPath = currentPath.slice(0, columnIndex);
-              newPath.push(itemName);
-              setCurrentPath(newPath);
-            }}
-            currentPath={currentPath}
-          />
+        {/* Main content area */}
+        <div className="flex-1 flex flex-col bg-white dark:bg-gray-950">
+          {/* Toolbar */}
+          <div className="flex items-center justify-between p-2 border-b">
+            <div className="flex items-center space-x-2">
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+              <div className="text-sm font-medium">
+                {selectedPath.length > 0 ? selectedPath.join(' / ') : 'All Files'}
+              </div>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="relative w-64">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="search"
+                  placeholder="Search files..."
+                  className="pl-8 h-8"
+                />
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleUploadClick}
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Upload
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  className="hidden"
+                  onChange={handleFileUpload}
+                  multiple
+                  accept="audio/*"
+                />
+              </Button>
+            </div>
+          </div>
+
+          {/* Drop area */}
+          <div
+            className={cn(
+              "m-4 border-2 border-dashed rounded-lg p-8 text-center",
+              "transition-all hover:border-primary/50"
+            )}
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+          >
+            {isUploading ? (
+              <div className="space-y-4">
+                <p className="text-muted-foreground">Uploading...</p>
+                <div className="relative h-2 max-w-md mx-auto rounded-full bg-gray-200 overflow-hidden">
+                  <div 
+                    className="absolute top-0 left-0 h-full rounded-full bg-primary" 
+                    style={{ width: `${uploadProgress}%` }}
+                  />
+                </div>
+                <p className="text-sm text-muted-foreground">{uploadProgress}%</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Music className="h-12 w-12 mx-auto text-muted-foreground" />
+                <h3 className="text-lg font-medium">Drag and drop audio files here</h3>
+                <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                  Supported formats: MP3, WAV, AAC, FLAC, OGG, M4A
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* File grid/list view */}
+          <div className="flex-1 p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {/* This would be populated with files from the selected folder */}
+            {/* For now, just showing placeholder items */}
+            {[1, 2, 3, 4].map((i) => (
+              <div 
+                key={i}
+                className="rounded-lg border bg-card overflow-hidden hover:shadow-md transition-shadow"
+              >
+                <div className="aspect-square bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                  <Music className="h-12 w-12 text-gray-400" />
+                </div>
+                <div className="p-3">
+                  <h4 className="font-medium text-sm">Track {i}.wav</h4>
+                  <p className="text-xs text-muted-foreground">3:45 • 24.5 MB</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 

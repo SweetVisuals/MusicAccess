@@ -30,7 +30,7 @@ export default function ProjectsPage() {
             </div>
 
             {/* File Browser */}
-            <div className="border rounded-lg">
+            <div className="rounded-lg overflow-hidden">
               <UnifiedFileBrowser initialFiles={[]} />
             </div>
           </div>
