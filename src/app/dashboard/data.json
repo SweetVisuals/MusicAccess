@@ -1,0 +1,67 @@
+[
+  {
+    "id": 1,
+    "project": "Summer Mix 2025",
+    "type": "Music Production",
+    "status": "In Progress",
+    "collaborators": 3,
+    "lastUpdated": "2025-03-05",
+    "tracks": 8,
+    "versions": 4,
+    "sales": 42,
+    "visitors": 186,
+    "profileVisits": 120
+  },
+  {
+    "id": 2,
+    "project": "Album Master",
+    "type": "Album Production",
+    "status": "Review",
+    "collaborators": 5,
+    "lastUpdated": "2025-03-04",
+    "tracks": 12,
+    "versions": 7,
+    "sales": 85,
+    "visitors": 305,
+    "profileVisits": 210
+  },
+  {
+    "id": 3,
+    "project": "Single Release",
+    "type": "Single Production",
+    "status": "Completed",
+    "collaborators": 2,
+    "lastUpdated": "2025-03-01",
+    "tracks": 1,
+    "versions": 3,
+    "sales": 63,
+    "visitors": 237,
+    "profileVisits": 180
+  },
+  {
+    "id": 4,
+    "project": "Film Score",
+    "type": "Scoring Project",
+    "status": "In Progress",
+    "collaborators": 4,
+    "lastUpdated": "2025-03-06",
+    "tracks": 15,
+    "versions": 9,
+    "sales": 38,
+    "visitors": 73,
+    "profileVisits": 95
+  },
+  {
+    "id": 5,
+    "project": "Podcast Theme",
+    "type": "Audio Production",
+    "status": "Draft",
+    "collaborators": 1,
+    "lastUpdated": "2025-03-03",
+    "tracks": 2,
+    "versions": 1,
+    "sales": 71,
+    "visitors": 209,
+    "profileVisits": 150
+  }
+]
