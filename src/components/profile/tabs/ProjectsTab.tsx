@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -31,7 +31,7 @@ interface ProjectsTabProps {
 
 const ProjectsTab = ({ viewMode, sortBy }: ProjectsTabProps) => {
   const { stats } = useProfile();
-  const [currentPage, setCurrentPage] = React.useState(1);
+  const [currentPage, setCurrentPage] = useState(1);
   const projectsPerPage = 8;
   const [projects, setProjects] = useState<Array<{
     id: string;
@@ -101,7 +101,7 @@ const ProjectsTab = ({ viewMode, sortBy }: ProjectsTabProps) => {
     }
   }
 
-  const totalPages = Math.ceil(allProjects.length / projectsPerPage);
+  const totalPages = Math.ceil(stats.tracks / projectsPerPage);
 
   return (
     <div className="space-y-4">
