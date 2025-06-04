@@ -36,7 +36,7 @@ export function SiteHeader() {
         <div className="flex items-center gap-4">
           <ThemeToggle />
           {!user ? (
-            <Button asChild variant="ghost" size="sm">
+            <Button asChild variant="ghost\" size="sm">
               <a href="/auth/login">
                 Login
               </a>
