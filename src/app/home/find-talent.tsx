@@ -1,14 +1,14 @@
 import { AppSidebar } from "@/components/homepage/app-sidebar"
 import { SiteHeader } from "@/components/homepage/site-header"
 import { SidebarInset, SidebarProvider } from "@/components/@/ui/sidebar"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/@/ui/card"
+import { Input } from "@/components/@/ui/input"
+import { Label } from "@/components/@/ui/label"
+import { Button } from "@/components/@/ui/button"
+import { Badge } from "@/components/@/ui/badge"
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/@/ui/avatar"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/@/ui/tabs"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/@/ui/select"
 import { Search, Star, MessageSquare, Heart, Briefcase, Clock, DollarSign, Filter } from "lucide-react"
 
 const services = [
@@ -76,7 +76,7 @@ const services = [
 
 const categories = [
   "All Categories",
-  "Mix & Master",
+  "Mix & Master", 
   "Production",
   "Recording",
   "Sound Design",
