@@ -1,7 +1,6 @@
 import { AppSidebar } from "@/components/dashboard/layout/app-sidebar.tsx";
 import { SiteHeader } from "@/components/dashboard/layout/site-header.tsx";
 import { SidebarInset, SidebarProvider } from "@/components/@/ui/sidebar";
-import { UnifiedFileBrowser } from '@/components/upload/upload-with-browser';
 import { Button } from "@/components/@/ui/button";
 import { Upload } from "lucide-react";
 import { UploadDialog } from "@/components/profile/UploadDialog";
@@ -29,9 +28,17 @@ export default function UploadPage() {
               </Button>
             </div>
 
-            {/* File Browser */}
-            <div className="border rounded-lg">
-              <UnifiedFileBrowser initialFiles={[]} />
+            {/* Upload Area */}
+            <div className="border-2 border-dashed rounded-lg p-12 text-center">
+              <Upload className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-medium mb-2">Drag and drop your audio files</h3>
+              <p className="text-muted-foreground mb-4">
+                Or click the upload button above to browse
+              </p>
+              <div className="max-w-sm mx-auto text-sm text-muted-foreground">
+                <p>Supported formats: MP3, WAV, AAC, FLAC, OGG, M4A</p>
+                <p>Maximum file size: 500MB</p>
+              </div>
             </div>
           </div>
 

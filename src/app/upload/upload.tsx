@@ -1,12 +1,5 @@
 import { useState, useRef } from 'react';
-import { 
-  File, 
-  Music, 
-  Video, 
-  FileText,
-  FileImage,
-  Upload
-} from 'lucide-react';
+import { Upload } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/@/ui/button';
 import { Progress } from '@/components/@/ui/progress';
