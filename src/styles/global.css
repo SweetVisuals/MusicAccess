@@ -79,10 +79,15 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply bg-background text-foreground font-sans antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;
-    letter-spacing: var(--tracking-normal);
   }
+}
+
+@font-face {
+  font-family: 'Outfit';
+  src: url('https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap');
+  font-display: swap;
 }
 
 /* Custom animations */
