@@ -7,10 +7,9 @@ import {
   FileImage,
   Upload
 } from 'lucide-react';
-import { UnifiedFileBrowser } from '@/components/upload/upload-with-browser';
-import { FileItem } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import filesData from '../../components/upload/files.json';
+import { Button } from '@/components/@/ui/button';
+import { Progress } from '@/components/@/ui/progress';
 
 export default function UploadPage() {
   const [isUploading, setIsUploading] = useState(false);
@@ -18,8 +17,6 @@ export default function UploadPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   
-  const files: FileItem[] = filesData;
-
   const handleUploadClick = () => {
     fileInputRef.current?.click();
   };
@@ -37,12 +34,11 @@ export default function UploadPage() {
           
           toast({
             title: "Upload complete",
-            description: "Your file has been uploaded successfully!",
+            description: "Your files have been uploaded successfully!",
           });
           
           return 0;
         }
-
         return prev + 10;
       });
     }, 400);
@@ -57,13 +53,41 @@ export default function UploadPage() {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
     handleFileUpload();
   };
 
   return (
     <div className="flex flex-col h-full">
-      <UnifiedFileBrowser initialFiles={files}/>
+      <div
+        className="border-2 border-dashed rounded-lg m-4 p-4 text-center"
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
+      >
+        {isUploading ? (
+          <div className="space-y-4">
+            <p className="text-muted-foreground">Uploading...</p>
+            <Progress value={uploadProgress} />
+            <p className="text-sm text-muted-foreground">{uploadProgress}%</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <Upload className="h-8 w-8 mx-auto text-muted-foreground" />
+            <p className="text-muted-foreground">
+              Drag and drop files here or{" "}
+              <Button variant="link" className="p-0 h-auto" onClick={handleUploadClick}>
+                browse
+              </Button>
+            </p>
+            <input
+              type="file"
+              ref={fileInputRef}
+              className="hidden"
+              onChange={handleFileUpload}
+              multiple
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
