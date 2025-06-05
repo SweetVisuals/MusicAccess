@@ -190,16 +190,16 @@ export function UnifiedFileBrowser({ initialFiles = demoFiles }: UnifiedFileBrow
     return items.map(item => {
       const isFolder = item.type === 'folder';
       const isExpanded = expandedFolders.has(item.id);
-      const currentPath = [...parentPath, item.name];
+      const currentItemPath = [...parentPath, item.name];
       
       return (
         <div key={item.id} style={{ paddingLeft: `${depth * 16}px` }}>
           <div 
             className={`flex items-center p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer ${
-              selectedPath.join('/') === currentPath.join('/') ? 'bg-blue-100 dark:bg-blue-900/30' : ''
+              selectedPath.join('/') === currentItemPath.join('/') ? 'bg-blue-100 dark:bg-blue-900/30' : ''
             }`}
             onClick={() => {
-              setSelectedPath(currentPath);
+              setSelectedPath(currentItemPath);
               if (isFolder) {
                 toggleFolder(item.id);
               }
@@ -227,7 +227,7 @@ export function UnifiedFileBrowser({ initialFiles = demoFiles }: UnifiedFileBrow
           
           {isFolder && isExpanded && item.children && (
             <div className="ml-2">
-              {renderFileTree(item.children, depth + 1, currentPath)}
+              {renderFileTree(item.children, depth + 1, currentItemPath)}
             </div>
           )}
         </div>

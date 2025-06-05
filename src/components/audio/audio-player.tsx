@@ -45,7 +45,7 @@ export function AudioPlayer() {
                 <p className="text-sm font-medium truncate">{currentTrack.title}</p>
                 {currentTrack.projectTitle && (
                   <p className="text-xs text-muted-foreground truncate">
-                    {currentTrack.projectTitle}
+                    {currentTrack.projectTitle} {currentTrack.size && `• ${currentTrack.size}`}
                   </p>
                 )}
               </div>

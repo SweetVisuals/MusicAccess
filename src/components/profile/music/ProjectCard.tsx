@@ -36,13 +36,78 @@ const ProjectCard = ({ project, variant, id }: ProjectCardProps) => {
   }
 
   // Generate 10 audio files for each project
-  const audioFiles = Array.from({ length: 10 }, (_, i) => ({
-    id: `${project.id}-file-${i + 1}`,
-    title: `${i === 0 ? 'Main Mix' : i === 1 ? 'Instrumental' : `Stem ${i - 1}`}`,
-    duration: `${Math.floor(Math.random() * 3) + 2}:${Math.floor(Math.random() * 60).toString().padStart(2, '0')}`,
-    size: `${Math.floor(Math.random() * 40) + 5} MB`,
-    type: i < 2 ? 'wav' : 'mp3'
-  }));
+  const audioFiles = [
+    {
+      id: `${project.id}-file-1`,
+      title: 'Main Mix',
+      duration: '3:45',
+      size: '24.5 MB',
+      type: 'wav'
+    },
+    {
+      id: `${project.id}-file-2`,
+      title: 'Instrumental',
+      duration: '3:42',
+      size: '22.8 MB',
+      type: 'wav'
+    },
+    {
+      id: `${project.id}-file-3`,
+      title: 'Stem - Drums',
+      duration: '3:45',
+      size: '18.2 MB',
+      type: 'mp3'
+    },
+    {
+      id: `${project.id}-file-4`,
+      title: 'Stem - Bass',
+      duration: '3:45',
+      size: '12.4 MB',
+      type: 'mp3'
+    },
+    {
+      id: `${project.id}-file-5`,
+      title: 'Stem - Synths',
+      duration: '3:45',
+      size: '15.7 MB',
+      type: 'mp3'
+    },
+    {
+      id: `${project.id}-file-6`,
+      title: 'Stem - Vocals',
+      duration: '3:45',
+      size: '14.3 MB',
+      type: 'mp3'
+    },
+    {
+      id: `${project.id}-file-7`,
+      title: 'Stem - FX',
+      duration: '3:45',
+      size: '8.6 MB',
+      type: 'mp3'
+    },
+    {
+      id: `${project.id}-file-8`,
+      title: 'Stem - Pads',
+      duration: '3:45',
+      size: '10.2 MB',
+      type: 'mp3'
+    },
+    {
+      id: `${project.id}-file-9`,
+      title: 'Stem - Leads',
+      duration: '3:45',
+      size: '9.8 MB',
+      type: 'mp3'
+    },
+    {
+      id: `${project.id}-file-10`,
+      title: 'Acapella',
+      duration: '3:45',
+      size: '7.5 MB',
+      type: 'mp3'
+    }
+  ];
 
   const isProjectPlaying = currentTrack?.id.startsWith(project.id);
 
@@ -87,7 +152,7 @@ const ProjectCard = ({ project, variant, id }: ProjectCardProps) => {
             <div>
               <h3 className="font-medium">{project.title}</h3>
               <div className="text-xs text-muted-foreground">
-                {project.totalTracks} track{project.totalTracks !== 1 ? 's' : ''}
+                {audioFiles.length} track{audioFiles.length !== 1 ? 's' : ''}
               </div>
             </div>
           </div>
@@ -112,7 +177,9 @@ const ProjectCard = ({ project, variant, id }: ProjectCardProps) => {
                     title: file.title,
                     projectTitle: project.title,
                     artworkUrl: project.artworkUrl,
-                    duration: file.duration
+                    duration: file.duration,
+                    size: file.size,
+                    type: file.type
                   });
                   // Scroll to bottom to ensure player is visible
                   setTimeout(() => {
