@@ -20,7 +20,9 @@ import ProjectCard from '../music/ProjectCard';
 import ProjectListView from '../music/ProjectListView';
 import useProfile from '@/hooks/useProfile';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { DndProvider } from 'react-dnd';
+import { HTML5Backend } from 'react-dnd-html5-backend';
 
 interface ProjectsTabProps {
   viewMode: 'grid' | 'list';
@@ -30,7 +32,7 @@ interface ProjectsTabProps {
 const ProjectsTab = ({ viewMode, sortBy }: ProjectsTabProps) => {
   const { stats } = useProfile();
   const [currentPage, setCurrentPage] = useState(1);
-  const projectsPerPage = 8;
+  const projectsPerPage = 4; // Show 4 projects per page
   const [projects, setProjects] = useState<Array<{
     id: string;
     title: string;
@@ -96,54 +98,6 @@ const ProjectsTab = ({ viewMode, sortBy }: ProjectsTabProps) => {
         ],
         totalTracks: 3,
         isPopular: true
-      },
-      {
-        id: "5",
-        title: "Urban Nights",
-        artworkUrl: "https://images.pexels.com/photos/1537638/pexels-photo-1537638.jpeg",
-        tracks: [
-          { id: "5-1", title: "Street Life", duration: "3:52" },
-          { id: "5-2", title: "City Dreams", duration: "4:08" },
-          { id: "5-3", title: "Night Rider", duration: "3:45" }
-        ],
-        totalTracks: 3,
-        isPopular: false
-      },
-      {
-        id: "6",
-        title: "Acoustic Stories",
-        artworkUrl: "https://images.pexels.com/photos/1751731/pexels-photo-1751731.jpeg",
-        tracks: [
-          { id: "6-1", title: "Wooden Heart", duration: "3:28" },
-          { id: "6-2", title: "Simple Times", duration: "4:02" },
-          { id: "6-3", title: "Pure Sound", duration: "3:38" }
-        ],
-        totalTracks: 3,
-        isPopular: true
-      },
-      {
-        id: "7",
-        title: "Jazz Fusion",
-        artworkUrl: "https://images.pexels.com/photos/1644616/pexels-photo-1644616.jpeg",
-        tracks: [
-          { id: "7-1", title: "Smooth Jazz", duration: "4:25" },
-          { id: "7-2", title: "Fusion Flow", duration: "3:55" },
-          { id: "7-3", title: "Jazz Life", duration: "4:15" }
-        ],
-        totalTracks: 3,
-        isPopular: false
-      },
-      {
-        id: "8",
-        title: "Future Bass",
-        artworkUrl: "https://images.pexels.com/photos/1649771/pexels-photo-1649771.jpeg",
-        tracks: [
-          { id: "8-1", title: "Bass Drop", duration: "3:32" },
-          { id: "8-2", title: "Future Sound", duration: "4:12" },
-          { id: "8-3", title: "Electronic Vibes", duration: "3:48" }
-        ],
-        totalTracks: 3,
-        isPopular: true
       }
     ];
   }
@@ -187,59 +141,93 @@ const ProjectsTab = ({ viewMode, sortBy }: ProjectsTabProps) => {
   
   const totalPages = Math.ceil(sortedProjects.length / projectsPerPage);
 
-  return (
-    <div className="space-y-4">
-      <DndContext 
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragEnd={handleDragEnd}
-      >
-        <SortableContext 
-          items={paginatedProjects.map(p => p.id)}
-          strategy={horizontalListSortingStrategy}
-        >
-          <div className={viewMode === 'grid' 
-            ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
-            : "flex flex-col gap-4"
-          }>
-            {paginatedProjects.map((project) => (
-              <SortableItem key={project.id} id={project.id}>
-                {viewMode === 'grid' ? (
-                  <ProjectCard project={project} variant="grid" id={project.id} />
-                ) : (
-                  <ProjectListView project={project} id={project.id} />
-                )}
-              </SortableItem>
-            ))}
-          </div>
-        </SortableContext>
-      </DndContext>
+  const handleAddProject = () => {
+    const newId = (Math.max(...projects.map(p => parseInt(p.id))) + 1).toString();
+    const newProject = {
+      id: newId,
+      title: `New Project ${newId}`,
+      artworkUrl: "https://images.pexels.com/photos/1694900/pexels-photo-1694900.jpeg",
+      tracks: [
+        { id: `${newId}-1`, title: "New Track 1", duration: "3:30" },
+        { id: `${newId}-2`, title: "New Track 2", duration: "4:15" },
+        { id: `${newId}-3`, title: "New Track 3", duration: "2:45" }
+      ],
+      totalTracks: 3,
+      isPopular: false
+    };
+    
+    setProjects(prev => [...prev, newProject]);
+    
+    // Go to the last page if needed
+    const newTotalPages = Math.ceil((projects.length + 1) / projectsPerPage);
+    if (currentPage < newTotalPages) {
+      setCurrentPage(newTotalPages);
+    }
+  };
 
-      {/* Pagination controls */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2 mt-6">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-            disabled={currentPage === 1}
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <span className="text-sm font-medium">
-            Page {currentPage} of {totalPages}
-          </span>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-            disabled={currentPage === totalPages}
-          >
-            <ChevronRight className="h-4 w-4" />
+  return (
+    <DndProvider backend={HTML5Backend}>
+      <div className="space-y-4">
+        <div className="flex justify-between items-center">
+          <h2 className="text-xl font-semibold">Your Projects</h2>
+          <Button onClick={handleAddProject} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Add Project
           </Button>
         </div>
-      )}
-    </div>
+        
+        <DndContext 
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext 
+            items={paginatedProjects.map(p => p.id)}
+            strategy={horizontalListSortingStrategy}
+          >
+            <div className={viewMode === 'grid' 
+              ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4"
+              : "flex flex-col gap-4"
+            }>
+              {paginatedProjects.map((project) => (
+                <SortableItem key={project.id} id={project.id}>
+                  {viewMode === 'grid' ? (
+                    <ProjectCard project={project} variant="grid" id={project.id} />
+                  ) : (
+                    <ProjectListView project={project} id={project.id} />
+                  )}
+                </SortableItem>
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
+
+        {/* Pagination controls */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-2 mt-6">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="text-sm font-medium">
+              Page {currentPage} of {totalPages}
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+      </div>
+    </DndProvider>
   );
 };
 

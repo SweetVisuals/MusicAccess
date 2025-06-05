@@ -7,6 +7,7 @@ import { useState, useEffect } from "react"
 export function AudioPlayer() {
   const { currentTrack, isPlaying, togglePlay } = useAudioPlayer()
   const [progress, setProgress] = useState(0)
+  const [currentTime, setCurrentTime] = useState(0)
   
   // Simulate progress when playing
   useEffect(() => {
@@ -20,10 +21,39 @@ export function AudioPlayer() {
         }
         return prev + 0.5
       })
+      
+      setCurrentTime(prev => {
+        const duration = parseDuration(currentTrack.duration || '0:00')
+        const increment = duration / 200 // 0.5% of total duration
+        if (prev >= duration) {
+          return 0
+        }
+        return prev + increment
+      })
     }, 100)
     
     return () => clearInterval(interval)
   }, [isPlaying, currentTrack])
+  
+  // Reset progress when track changes
+  useEffect(() => {
+    setProgress(0)
+    setCurrentTime(0)
+  }, [currentTrack?.id])
+  
+  const parseDuration = (duration: string): number => {
+    const parts = duration.split(':')
+    if (parts.length === 2) {
+      return parseInt(parts[0]) * 60 + parseInt(parts[1])
+    }
+    return 0
+  }
+  
+  const formatTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60)
+    const secs = Math.floor(seconds % 60)
+    return `${mins}:${secs.toString().padStart(2, '0')}`
+  }
 
   return (
     <div className={`fixed bottom-0 left-0 md:left-[var(--sidebar-width)] right-0 bg-background/95 backdrop-blur-sm border-t z-[50] transition-all duration-200 ease-in-out shadow-lg transform translate-z-0 ${!currentTrack ? 'translate-y-full' : 'translate-y-0'}`}>
@@ -43,11 +73,11 @@ export function AudioPlayer() {
               )}
               <div className="min-w-0">
                 <p className="text-sm font-medium truncate">{currentTrack.title}</p>
-                {currentTrack.projectTitle && (
-                  <p className="text-xs text-muted-foreground truncate">
-                    {currentTrack.projectTitle} {currentTrack.size && `• ${currentTrack.size}`}
-                  </p>
-                )}
+                <p className="text-xs text-muted-foreground truncate">
+                  {currentTrack.projectTitle} 
+                  {currentTrack.size && ` • ${currentTrack.size}`}
+                  {currentTrack.type && ` • ${currentTrack.type}`}
+                </p>
               </div>
             </div>
           )}
@@ -73,7 +103,9 @@ export function AudioPlayer() {
             
             {/* Progress Bar */}
             <div className="w-full flex items-center gap-2">
-              <span className="text-xs text-muted-foreground w-8 text-right">0:00</span>
+              <span className="text-xs text-muted-foreground w-8 text-right">
+                {formatTime(currentTime)}
+              </span>
               <div className="flex-1">
                 <Progress value={progress} className="h-1" />
               </div>
