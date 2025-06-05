@@ -7,7 +7,6 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
-  UniqueIdentifier,
 } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -17,7 +16,6 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import TrackCard from '../music/TrackCard';
 import ProjectCard from '../music/ProjectCard';
 import ProjectListView from '../music/ProjectListView';
 import useProfile from '@/hooks/useProfile';
@@ -41,45 +39,113 @@ const ProjectsTab = ({ viewMode, sortBy }: ProjectsTabProps) => {
       id: string;
       title: string;
       duration: string;
-      streams: number;
-      artworkUrl: string;
-      isPopular: boolean;
     }>;
     totalTracks: number;
     isPopular: boolean;
   }>>(() => {
-    const allProjects = generateAllProjects();
-    return allProjects.slice(
-      (currentPage - 1) * projectsPerPage,
-      currentPage * projectsPerPage
-    );
+    return generateAllProjects();
   });
 
   function generateAllProjects() {
-    // Sample track data - would normally come from API
-    const allTracks = Array.from({ length: stats.tracks }, (_, i) => ({
-      id: `track-${i + 1}`,
-      title: `Track ${i + 1}`,
-      duration: `${Math.floor(Math.random() * 4) + 2}:${Math.floor(Math.random() * 60).toString().padStart(2, '0')}`,
-      streams: Math.floor(Math.random() * 10000),
-      artworkUrl: 'https://images.pexels.com/photos/5077069/pexels-photo-5077069.jpeg',
-      isPopular: Math.random() > 0.7,
-    }));
-
-    // Group all tracks into projects (10 tracks per project)
-    const allProjects = [];
-    for (let i = 0; i < allTracks.length; i += 10) {
-      const projectTracks = allTracks.slice(i, i + 10);
-      allProjects.push({
-        id: `project-${Math.floor(i / 10) + 1}`,
-        title: `Project ${Math.floor(i / 10) + 1}`,
-        artworkUrl: projectTracks[0].artworkUrl,
-        tracks: projectTracks,
-        totalTracks: projectTracks.length,
-        isPopular: projectTracks.some(track => track.isPopular),
-      });
-    }
-    return allProjects;
+    // Sample project data
+    return [
+      {
+        id: "1",
+        title: "Summer Vibes EP",
+        artworkUrl: "https://images.pexels.com/photos/1626481/pexels-photo-1626481.jpeg",
+        tracks: [
+          { id: "1-1", title: "Summer Breeze", duration: "3:45" },
+          { id: "1-2", title: "Ocean Waves", duration: "4:12" },
+          { id: "1-3", title: "Sunset Dreams", duration: "3:56" }
+        ],
+        totalTracks: 3,
+        isPopular: true
+      },
+      {
+        id: "2",
+        title: "Late Night Beats",
+        artworkUrl: "https://images.pexels.com/photos/1389429/pexels-photo-1389429.jpeg",
+        tracks: [
+          { id: "2-1", title: "Midnight Groove", duration: "3:22" },
+          { id: "2-2", title: "City Lights", duration: "4:05" },
+          { id: "2-3", title: "Urban Flow", duration: "3:48" }
+        ],
+        totalTracks: 3,
+        isPopular: true
+      },
+      {
+        id: "3",
+        title: "Soul Sessions",
+        artworkUrl: "https://images.pexels.com/photos/1763075/pexels-photo-1763075.jpeg",
+        tracks: [
+          { id: "3-1", title: "Soulful Morning", duration: "4:15" },
+          { id: "3-2", title: "Rhythm & Blues", duration: "3:58" },
+          { id: "3-3", title: "Heart & Soul", duration: "4:22" }
+        ],
+        totalTracks: 3,
+        isPopular: false
+      },
+      {
+        id: "4",
+        title: "Electronic Dreams",
+        artworkUrl: "https://images.pexels.com/photos/1694900/pexels-photo-1694900.jpeg",
+        tracks: [
+          { id: "4-1", title: "Digital Love", duration: "3:35" },
+          { id: "4-2", title: "Cyber Space", duration: "4:18" },
+          { id: "4-3", title: "Future Beats", duration: "3:42" }
+        ],
+        totalTracks: 3,
+        isPopular: true
+      },
+      {
+        id: "5",
+        title: "Urban Nights",
+        artworkUrl: "https://images.pexels.com/photos/1537638/pexels-photo-1537638.jpeg",
+        tracks: [
+          { id: "5-1", title: "Street Life", duration: "3:52" },
+          { id: "5-2", title: "City Dreams", duration: "4:08" },
+          { id: "5-3", title: "Night Rider", duration: "3:45" }
+        ],
+        totalTracks: 3,
+        isPopular: false
+      },
+      {
+        id: "6",
+        title: "Acoustic Stories",
+        artworkUrl: "https://images.pexels.com/photos/1751731/pexels-photo-1751731.jpeg",
+        tracks: [
+          { id: "6-1", title: "Wooden Heart", duration: "3:28" },
+          { id: "6-2", title: "Simple Times", duration: "4:02" },
+          { id: "6-3", title: "Pure Sound", duration: "3:38" }
+        ],
+        totalTracks: 3,
+        isPopular: true
+      },
+      {
+        id: "7",
+        title: "Jazz Fusion",
+        artworkUrl: "https://images.pexels.com/photos/1644616/pexels-photo-1644616.jpeg",
+        tracks: [
+          { id: "7-1", title: "Smooth Jazz", duration: "4:25" },
+          { id: "7-2", title: "Fusion Flow", duration: "3:55" },
+          { id: "7-3", title: "Jazz Life", duration: "4:15" }
+        ],
+        totalTracks: 3,
+        isPopular: false
+      },
+      {
+        id: "8",
+        title: "Future Bass",
+        artworkUrl: "https://images.pexels.com/photos/1649771/pexels-photo-1649771.jpeg",
+        tracks: [
+          { id: "8-1", title: "Bass Drop", duration: "3:32" },
+          { id: "8-2", title: "Future Sound", duration: "4:12" },
+          { id: "8-3", title: "Electronic Vibes", duration: "3:48" }
+        ],
+        totalTracks: 3,
+        isPopular: true
+      }
+    ];
   }
 
   const sensors = useSensors(
@@ -101,7 +167,25 @@ const ProjectsTab = ({ viewMode, sortBy }: ProjectsTabProps) => {
     }
   }
 
-  const totalPages = Math.ceil(stats.tracks / projectsPerPage);
+  // Apply sorting
+  const sortedProjects = [...projects].sort((a, b) => {
+    if (sortBy === 'popular') {
+      return a.isPopular === b.isPopular ? 0 : a.isPopular ? -1 : 1;
+    } else if (sortBy === 'oldest') {
+      return parseInt(a.id) - parseInt(b.id);
+    } else {
+      // latest
+      return parseInt(b.id) - parseInt(a.id);
+    }
+  });
+
+  // Pagination
+  const paginatedProjects = sortedProjects.slice(
+    (currentPage - 1) * projectsPerPage,
+    currentPage * projectsPerPage
+  );
+  
+  const totalPages = Math.ceil(sortedProjects.length / projectsPerPage);
 
   return (
     <div className="space-y-4">
@@ -111,14 +195,14 @@ const ProjectsTab = ({ viewMode, sortBy }: ProjectsTabProps) => {
         onDragEnd={handleDragEnd}
       >
         <SortableContext 
-          items={projects}
+          items={paginatedProjects.map(p => p.id)}
           strategy={horizontalListSortingStrategy}
         >
           <div className={viewMode === 'grid' 
             ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
             : "flex flex-col gap-4"
           }>
-            {projects.map((project) => (
+            {paginatedProjects.map((project) => (
               <SortableItem key={project.id} id={project.id}>
                 {viewMode === 'grid' ? (
                   <ProjectCard project={project} variant="grid" id={project.id} />

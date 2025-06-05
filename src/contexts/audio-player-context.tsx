@@ -3,10 +3,12 @@ import { createContext, useContext, useState } from 'react';
 export type Track = {
   id: string;
   title: string;
-  duration: string;
+  duration?: string;
   artworkUrl?: string;
   artist?: string;
   projectTitle?: string;
+  size?: string;
+  type?: string;
 };
 
 type AudioPlayerContextType = {
@@ -28,6 +30,11 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
   const [isPlaying, setIsPlaying] = useState(false);
 
   const playTrack = (track: Track) => {
+    if (currentTrack?.id === track.id) {
+      togglePlay();
+      return;
+    }
+    
     console.log('Playing track:', track);
     setCurrentTrack(track);
     setIsPlaying(true);
