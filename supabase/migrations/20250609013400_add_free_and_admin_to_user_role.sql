@@ -1,0 +1,2 @@
+ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'Free';
+ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'Admin';
