@@ -24,35 +24,44 @@ export function SignupForm({
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <form onSubmit={async (e) => {
-        e.preventDefault()
-        setIsLoading(true)
+        e.preventDefault();
+        setIsLoading(true);
         
         try {
-          const formData = new FormData(e.currentTarget)
+          const formData = new FormData(e.currentTarget);
           const data: SignupData = {
             username: formData.get("username") as string,
             email: formData.get("email") as string,
-            password: formData.get("password") as string,
-          }
+            password: formData.get("password") as string
+          };
 
-          const { error } = await supabase.auth.signUp({
+          // Use Supabase's built-in signUp method
+          const { data: authData, error: authError } = await supabase.auth.signUp({
             email: data.email,
             password: data.password,
             options: {
               data: {
-                username: data.username
-              }
-            }
-          })
+                username: data.username,
+              },
+            },
+          });
 
-          if (error) throw error
+          if (authError) {
+            console.error('Auth Error Details:', authError);
+            throw new Error(authError.message || "Account creation failed");
+          }
 
-          toast.success("Check your email to confirm your account")
-          navigate("/auth/login")
+          if (!authData.user) {
+            throw new Error("Account creation failed: no user returned.");
+          }
+
+          toast.success(`Account created! Please check ${data.email} for a verification email.`);
+          await new Promise(resolve => setTimeout(resolve, 1500));
+          navigate("/auth/login");
         } catch (error: any) {
-          toast.error(error.message)
+          toast.error(error.message);
         } finally {
-          setIsLoading(false)
+          setIsLoading(false);
         }
       }}>
         <div className="flex flex-col gap-6">

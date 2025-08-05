@@ -1,5 +1,8 @@
-import { create } from 'zustand';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useStorage } from '@/contexts/storage-context';
+import { useAuth } from '@/contexts/auth-context';
+import { UserStats } from '@/lib/types'; // Import UserStats from src/lib/types.ts
 
 interface UserProfile {
   username: string | null;
@@ -7,31 +10,20 @@ interface UserProfile {
   profile_url: string | null;
 }
 
-interface UserStats {
-  gems: number;
-}
+export default function useUserData() {
+  const { user: authUser } = useAuth();
+  const { lastUpdated } = useStorage();
 
-interface UserDataStore {
-  storageUsed: number;
-  storageLimit: number;
-  loadingStorage: boolean;
-  errorStorage: string | null;
-  profile: UserProfile | null;
-  userStats: UserStats | null;
-  fetchStorageUsage: (userId: string) => Promise<void>;
-  ensureUserProfile: (user: any) => Promise<void>;
-}
+  const [storageUsed, setStorageUsed] = useState(0);
+  const [storageLimit, setStorageLimit] = useState(1024 * 1024 * 1024); // 1GB
+  const [loadingStorage, setLoadingStorage] = useState(false);
+  const [errorStorage, setErrorStorage] = useState<string | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [userStats, setUserStats] = useState<UserStats | null>(null);
 
-const useUserData = create<UserDataStore>((set, get) => ({
-  storageUsed: 0,
-  storageLimit: 1024 * 1024 * 1024, // 1GB in bytes
-  loadingStorage: false,
-  errorStorage: null,
-  profile: null,
-  userStats: null,
-
-  fetchStorageUsage: async (userId) => {
-    set({ loadingStorage: true, errorStorage: null });
+  const fetchStorageUsage = useCallback(async (userId: string) => {
+    setLoadingStorage(true);
+    setErrorStorage(null);
     try {
       const { data: files, error } = await supabase
         .from('files')
@@ -41,16 +33,15 @@ const useUserData = create<UserDataStore>((set, get) => ({
       if (error) throw error;
 
       const totalSize = files?.reduce((acc, file) => acc + (file.size || 0), 0) || 0;
-      set({ storageUsed: totalSize, loadingStorage: false });
+      setStorageUsed(totalSize);
     } catch (error) {
-      set({
-        errorStorage: error instanceof Error ? error.message : 'Failed to fetch storage usage',
-        loadingStorage: false,
-      });
+      setErrorStorage(error instanceof Error ? error.message : 'Failed to fetch storage usage');
+    } finally {
+      setLoadingStorage(false);
     }
-  },
+  }, []);
 
-  ensureUserProfile: async (user) => {
+  const ensureUserProfile = useCallback(async (user: any) => {
     if (!user) return;
 
     // Check if profile exists
@@ -80,10 +71,10 @@ const useUserData = create<UserDataStore>((set, get) => ({
       if (createProfileError) {
         console.error('Error creating profile:', createProfileError);
       } else {
-        set({ profile: newProfile });
+        setProfile(newProfile);
       }
     } else {
-      set({ profile: profileData });
+      setProfile(profileData);
     }
 
     // Check if user_stats exists
@@ -108,12 +99,28 @@ const useUserData = create<UserDataStore>((set, get) => ({
       if (createUserStatsError) {
         console.error('Error creating user_stats:', createUserStatsError);
       } else {
-        set({ userStats: newUserStats });
+        setUserStats(newUserStats);
       }
     } else {
-      set({ userStats: userStatsData });
+      setUserStats(userStatsData);
     }
-  },
-}));
+  }, []);
 
-export default useUserData;
+  useEffect(() => {
+    if (authUser) {
+      ensureUserProfile(authUser);
+      fetchStorageUsage(authUser.id);
+    }
+  }, [authUser, ensureUserProfile, fetchStorageUsage, lastUpdated]);
+
+  return {
+    storageUsed,
+    storageLimit,
+    loadingStorage,
+    errorStorage,
+    profile,
+    userStats,
+    fetchStorageUsage,
+    ensureUserProfile,
+  };
+}

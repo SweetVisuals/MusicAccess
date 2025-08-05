@@ -1,7 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { AppSidebar } from "@/components/dashboard/layout/app-sidebar";
-import { SidebarInset, SidebarProvider } from "@/components/@/ui/sidebar";
-import { SiteHeader } from "@/components/dashboard/layout/site-header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/@/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/@/ui/badge";
@@ -116,8 +113,8 @@ interface OrderStats {
   totalOrders: number;
   pendingOrders: number;
   completedOrders: number;
-  failedOrders: number;
-  totalRevenue: number;
+  failedOrders: 0;
+  totalRevenue: 0;
   averageOrderValue: number;
   conversionRate: number;
   repeatCustomers: number;
@@ -377,39 +374,9 @@ export default function SalesPage() {
   };
 
   return (
-    <SidebarProvider>
-      <AppSidebar variant="inset" />
-      <SidebarInset>
-        <SiteHeader />
-        <div className="flex flex-1 flex-col">
-          <div className="@container/main flex flex-1 flex-col gap-6 animate-fade-in p-8">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold">Sales & Orders</h1>
-                <p className="text-muted-foreground">Track your sales, revenue, and manage orders.</p>
-              </div>
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <Select value={timeRange} onValueChange={(value: '7d' | '30d' | '90d') => setTimeRange(value)}>
-                    <SelectTrigger className="w-[180px]">
-                      <Calendar className="h-4 w-4 mr-2" />
-                      <SelectValue placeholder="Select time range" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="7d">Last 7 days</SelectItem>
-                      <SelectItem value="30d">Last 30 days</SelectItem>
-                      <SelectItem value="90d">Last 90 days</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Button variant="outline" className="gap-2">
-                    <Download className="h-4 w-4" />
-                    Export
-                  </Button>
-                </div>
-              </div>
-            </div>
-
-            <Tabs defaultValue="orders">
+    <>
+      <div className="@container/main flex flex-1 flex-col gap-6 animate-fade-in p-6">
+        <Tabs defaultValue="orders">
               <TabsList>
                 <TabsTrigger value="orders">Orders</TabsTrigger>
                 <TabsTrigger value="sales">Sales</TabsTrigger>
@@ -499,8 +466,8 @@ export default function SalesPage() {
                                     <div className="flex flex-col">
                                       <span className="text-sm font-medium">{sale.order_id}</span>
                                     </div>
-                                  </div>
-                                </TableCell>
+                                    </div>
+                                  </TableCell>
                                 <TableCell>${sale.price}</TableCell>
                                 <TableCell>{sale.quantity}</TableCell>
                                 <TableCell>{new Date(sale.sale_date).toLocaleDateString()}</TableCell>
@@ -752,7 +719,7 @@ export default function SalesPage() {
                                         <AvatarImage src={order.customer.avatar} />
                                         <AvatarFallback>{order.customer.name[0]}</AvatarFallback>
                                       </Avatar>
-                                      <div>
+                                      <div className="flex flex-col">
                                         <Button 
                                           variant="link" 
                                           className="h-auto p-0 font-medium text-left"
@@ -777,7 +744,7 @@ export default function SalesPage() {
                                         e.stopPropagation();
                                         if (order.attachmentUrl && order.attachmentName) {
                                           handleViewAttachment({
-                                            url: order.attachmentUrl,
+                                            url: order.attachmentUrl!,
                                             name: order.attachmentName
                                           });
                                         }
@@ -1029,9 +996,6 @@ export default function SalesPage() {
               </TabsContent>
             </Tabs>
           </div>
-        </div>
-      </SidebarInset>
-
       <Dialog open={showMessageDialog} onOpenChange={setShowMessageDialog}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
@@ -1105,7 +1069,7 @@ export default function SalesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </SidebarProvider>
+    </>
   );
 }
 

@@ -17,19 +17,8 @@ const ProfileInfo = ({ profile, isLoading = false }: ProfileInfoProps) => {
   }
 
   return (
-    <div className="px-6 py-6 max-w-7xl mx-auto">
-      {profile?.website && (
-        <div>
-          <a 
-            href={profile.website} 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="text-sm text-primary hover:underline"
-          >
-            {profile.website}
-          </a>
-        </div>
-      )}
+    <div className="px-6 max-w-7xl mx-auto">
+      
     </div>
   );
 };

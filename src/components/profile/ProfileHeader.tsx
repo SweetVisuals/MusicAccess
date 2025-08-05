@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
-import { PlayCircle, Users, Gem, MessageCircle, UserPlus, Camera, MapPin, Calendar, Globe, Settings, Loader2, AlertCircle, Plus } from 'lucide-react';
+import { PlayCircle, Users, Gem, MessageCircle, UserPlus, Camera, MapPin, Calendar, Globe, Settings, Loader2, AlertCircle, Plus, UserCheck, UserX } from 'lucide-react';
 import { format } from 'date-fns';
 import { Button } from '@/components/@/ui/button';
 import { Badge } from '@/components/@/ui/badge';
 import { SettingsDialog } from '@/components/settings-dialog';
 import { DialogTrigger } from '@/components/ui/dialog';
 import { User, Profile, ProfileStats } from '@/lib/types';
+import { supabase } from '@/lib/supabase';
+import useProfile from '@/hooks/useProfile';
 
 interface ProfileHeaderProps {
   user: User;
@@ -28,6 +30,50 @@ const ProfileHeader = ({
 }: ProfileHeaderProps) => {
   const name = profile?.full_name || '';
   const isOwner = user?.id === profile?.id;
+  const { id: profileId } = profile || {};
+  const { id: authUserId } = user || {};
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followersCount, setFollowersCount] = useState(stats?.followers || 0);
+  const [followingCount, setFollowingCount] = useState(stats?.following || 0);
+  const { fetchProfile } = useProfile();
+
+
+  useEffect(() => {
+    const checkFollowingStatus = async () => {
+      if (!authUserId || !profileId || isOwner) return;
+      const { data, error } = await supabase.rpc('is_following', { profile_id_to_check: profileId });
+      if (error) {
+        console.error('Error checking following status:', error);
+      } else {
+        setIsFollowing(data);
+      }
+    };
+
+    checkFollowingStatus();
+  }, [authUserId, profileId, isOwner]);
+
+  useEffect(() => {
+    setFollowersCount(stats?.followers || 0);
+    setFollowingCount(stats?.following || 0);
+  }, [stats]);
+
+  const handleFollow = async () => {
+    if (!authUserId || !profileId || isOwner) return;
+
+    const functionName = isFollowing ? 'unfollow' : 'follow';
+    const { error } = await supabase.rpc(functionName, { [`profile_id_to_${functionName}`]: profileId });
+
+    if (error) {
+      console.error(`Error ${functionName}ing user:`, error);
+    } else {
+      setIsFollowing(!isFollowing);
+      // Refetch profile to get updated follower count
+      if (profileId) {
+        fetchProfile(profileId);
+      }
+    }
+  };
+
   const bannerUrl = profile?.bannerUrl || '';
   const avatarUrl = profile?.avatarUrl || '';
   const hasAvatar = !!avatarUrl && avatarUrl !== '/default-avatar.png';
@@ -176,7 +222,7 @@ const ProfileHeader = ({
                     </div>
                     <div className="flex items-center gap-1">
                       <Users className="h-4 w-4 text-primary" />
-                      <span className="text-sm">{stats?.followers?.toLocaleString() || '0'}</span>
+                      <span className="text-sm">{followersCount.toLocaleString() || '0'}</span>
                       <span className="text-xs text-muted-foreground">Followers</span>
                     </div>
                     <div className="flex items-center gap-1">
@@ -200,16 +246,16 @@ const ProfileHeader = ({
                         {profile?.location}
                       </Button>
                     )}
-                    {profile?.createdAt && (
-                      <Button variant="outline" size="sm" className="rounded-full">
-                        <Calendar className="h-3.5 w-3.5 mr-1" />
-                        Joined {format(new Date(profile?.createdAt || ''), 'MMMM yyyy')}
-                      </Button>
-                    )}
                     {profile?.website_url && (
                       <Button variant="outline" size="sm" className="rounded-full">
                         <Globe className="h-3.5 w-3.5 mr-1" />
                         {profile?.website_url}
+                      </Button>
+                    )}
+                    {profile && (
+                      <Button variant="outline" size="sm" className="rounded-full">
+                        <Calendar className="h-3.5 w-3.5 mr-1" />
+                        Joined {format(new Date(profile?.createdAt || new Date()), 'MMMM yyyy')}
                       </Button>
                     )}
                   </div>
@@ -223,9 +269,18 @@ const ProfileHeader = ({
                         <MessageCircle className="h-4 w-4 mr-2" />
                         Message
                       </Button>
-                      <Button variant="outline">
-                        <UserPlus className="h-4 w-4 mr-2" />
-                        Follow
+                      <Button variant="outline" onClick={handleFollow}>
+                        {isFollowing ? (
+                          <>
+                            <UserX className="h-4 w-4 mr-2" />
+                            Unfollow
+                          </>
+                        ) : (
+                          <>
+                            <UserPlus className="h-4 w-4 mr-2" />
+                            Follow
+                          </>
+                        )}
                       </Button>
                     </>
                   ) : (

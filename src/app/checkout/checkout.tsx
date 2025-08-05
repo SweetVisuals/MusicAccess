@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppSidebar } from "@/components/homepage/app-sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/@/ui/sidebar";
-import { SiteHeader } from "@/components/homepage/site-header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/@/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -212,7 +211,6 @@ export default function CheckoutPage() {
     <SidebarProvider>
       <AppSidebar variant="inset" />
       <SidebarInset>
-        <SiteHeader />
         <div className="flex flex-1 flex-col">
           <div className="@container/main flex flex-1 flex-col gap-6 animate-fade-in p-8">
             {/* Header */}

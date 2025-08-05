@@ -39,35 +39,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   useEffect(() => {
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
-      if (currentUser) {
-        // Initial fetch of storage usage
-        const { data, error } = await supabase
-          .from('files')
-          .select('size')
-          .eq('user_id', currentUser.id);
-
-        if (!error) {
-          const totalSize = data.reduce((acc, file) => acc + file.size, 0);
-          setStorageUsed(totalSize);
-        }
-      }
-      setIsLoading(false);
-    };
-
-    checkSession();
-
+    setIsLoading(true);
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setUser(session?.user ?? null);
+      async (_event, session) => {
+        const currentUser = session?.user ?? null;
+        setUser(currentUser);
+
+        if (currentUser) {
+          await fetchStorageUsage();
+        }
+        
         setIsLoading(false);
       }
     );
 
-    return () => subscription.unsubscribe();
+    // Initial session check
+    const checkInitialSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setIsLoading(false);
+      }
+    };
+    checkInitialSession();
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {

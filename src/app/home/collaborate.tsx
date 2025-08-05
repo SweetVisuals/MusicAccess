@@ -1,6 +1,4 @@
-import { AppSidebar } from "@/components/homepage/app-sidebar"
-import { SidebarInset, SidebarProvider } from "@/components/@/ui/sidebar"
-import { SiteHeader } from "@/components/homepage/site-header"
+import { HomeLayout } from "@/components/layout/HomeLayout"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/@/ui/card"
 import { Button } from "@/components/@/ui/button"
 import { Input } from "@/components/@/ui/input"
@@ -86,169 +84,165 @@ const collaborationPosts = [
 
 export default function CollaboratePage() {
   return (
-    <SidebarProvider>
-      <AppSidebar variant="inset" />
-      <SidebarInset>
-        <SiteHeader />
-        <div className="flex-1 space-y-8 p-8 pt-6">
-          {/* Header Section */}
-          <div className="flex justify-between items-start">
-            <div>
-              <h1 className="text-3xl font-bold">Collaborate</h1>
-              <p className="text-muted-foreground">Find collaborators and get feedback on your music</p>
-            </div>
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" />
-              Create Post
-            </Button>
+    <HomeLayout>
+      <div className="flex-1 space-y-8 p-8 pt-6">
+        {/* Header Section */}
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-3xl font-bold">Collaborate</h1>
+            <p className="text-muted-foreground">Find collaborators and get feedback on your music</p>
           </div>
+          <Button className="gap-2">
+            <Plus className="h-4 w-4" />
+            Create Post
+          </Button>
+        </div>
 
-          {/* Search and Filters */}
-          <div className="flex gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input placeholder="Search collaborations..." className="pl-10" />
-            </div>
-            <Button variant="outline" className="gap-2">
-              <Filter className="h-4 w-4" />
-              Filters
-            </Button>
+        {/* Search and Filters */}
+        <div className="flex gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input placeholder="Search collaborations..." className="pl-10" />
           </div>
+          <Button variant="outline" className="gap-2">
+            <Filter className="h-4 w-4" />
+            Filters
+          </Button>
+        </div>
 
-          {/* Main Content */}
-          <Tabs defaultValue="all" className="w-full">
-            <TabsList>
-              <TabsTrigger value="all" className="gap-2">
-                <Music2 className="h-4 w-4" />
-                All Posts
-              </TabsTrigger>
-              <TabsTrigger value="collaborations" className="gap-2">
-                <Users className="h-4 w-4" />
-                Collaborations
-              </TabsTrigger>
-              <TabsTrigger value="feedback" className="gap-2">
-                <MessageSquare className="h-4 w-4" />
-                Feedback
-              </TabsTrigger>
-            </TabsList>
+        {/* Main Content */}
+        <Tabs defaultValue="all" className="w-full">
+          <TabsList>
+            <TabsTrigger value="all" className="gap-2">
+              <Music2 className="h-4 w-4" />
+              All Posts
+            </TabsTrigger>
+            <TabsTrigger value="collaborations" className="gap-2">
+              <Users className="h-4 w-4" />
+              Collaborations
+            </TabsTrigger>
+            <TabsTrigger value="feedback" className="gap-2">
+              <MessageSquare className="h-4 w-4" />
+              Feedback
+            </TabsTrigger>
+          </TabsList>
 
-            <TabsContent value="all" className="mt-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {collaborationPosts.map((post) => (
-                  <Card key={post.id} className="overflow-hidden">
-                    <div className="relative h-48 w-full">
-                      <img 
-                        src={post.preview} 
-                        alt={post.title}
-                        className="absolute inset-0 h-full w-full object-cover"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                      <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between">
-                        <Badge 
-                          variant={post.type === "Collaboration" ? "default" : "secondary"}
-                          className="text-sm"
-                        >
-                          {post.type === "Collaboration" ? (
-                            <Users className="mr-1 h-3 w-3" />
-                          ) : (
-                            <MessageSquare className="mr-1 h-3 w-3" />
-                          )}
-                          {post.type}
-                        </Badge>
-                        <div className="flex gap-2">
-                          <Button variant="secondary" size="sm" className="h-8">
-                            <PlayCircle className="h-4 w-4" />
-                          </Button>
-                          <Button variant="secondary" size="sm" className="h-8">
-                            <Waveform className="h-4 w-4" />
-                          </Button>
-                        </div>
+          <TabsContent value="all" className="mt-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {collaborationPosts.map((post) => (
+                <Card key={post.id} className="overflow-hidden">
+                  <div className="relative h-48 w-full">
+                    <img 
+                      src={post.preview} 
+                      alt={post.title}
+                      className="absolute inset-0 h-full w-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                    <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between">
+                      <Badge 
+                        variant={post.type === "Collaboration" ? "default" : "secondary"}
+                        className="text-sm"
+                      >
+                        {post.type === "Collaboration" ? (
+                          <Users className="mr-1 h-3 w-3" />
+                        ) : (
+                          <MessageSquare className="mr-1 h-3 w-3" />
+                        )}
+                        {post.type}
+                      </Badge>
+                      <div className="flex gap-2">
+                        <Button variant="secondary" size="sm" className="h-8">
+                          <PlayCircle className="h-4 w-4" />
+                        </Button>
+                        <Button variant="secondary" size="sm" className="h-8">
+                          <Waveform className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
-                    <CardHeader>
-                      <div className="flex items-start justify-between">
-                        <div className="space-y-1">
-                          <CardTitle>{post.title}</CardTitle>
-                          <CardDescription>{post.description}</CardDescription>
-                        </div>
-                        <Button variant="ghost" size="icon">
-                          <Heart className="h-4 w-4" />
-                        </Button>
+                  </div>
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-1">
+                        <CardTitle>{post.title}</CardTitle>
+                        <CardDescription>{post.description}</CardDescription>
                       </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex items-center gap-4 mb-4">
-                        <Avatar>
-                          <AvatarImage src={post.author.avatar} />
-                          <AvatarFallback>{post.author.name[0]}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <div className="font-medium">{post.author.name}</div>
-                          <div className="text-sm text-muted-foreground">{post.author.role}</div>
-                        </div>
+                      <Button variant="ghost" size="icon">
+                        <Heart className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center gap-4 mb-4">
+                      <Avatar>
+                        <AvatarImage src={post.author.avatar} />
+                        <AvatarFallback>{post.author.name[0]}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="font-medium">{post.author.name}</div>
+                        <div className="text-sm text-muted-foreground">{post.author.role}</div>
                       </div>
-                      <div className="flex flex-wrap gap-2">
-                        {post.skills.map((skill) => (
-                          <Badge key={skill} variant="outline">
-                            {skill}
-                          </Badge>
-                        ))}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {post.skills.map((skill) => (
+                        <Badge key={skill} variant="outline">
+                          {skill}
+                        </Badge>
+                      ))}
+                    </div>
+                  </CardContent>
+                  <CardFooter className="flex items-center justify-between border-t pt-4">
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Heart className="h-4 w-4" />
+                        {post.likes}
                       </div>
-                    </CardContent>
-                    <CardFooter className="flex items-center justify-between border-t pt-4">
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <Heart className="h-4 w-4" />
-                          {post.likes}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <MessageSquare className="h-4 w-4" />
-                          {post.comments}
-                        </div>
-                        <span>{post.posted}</span>
+                      <div className="flex items-center gap-1">
+                        <MessageSquare className="h-4 w-4" />
+                        {post.comments}
                       </div>
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm">
-                          <Share2 className="h-4 w-4 mr-2" />
-                          Share
-                        </Button>
-                        <Button size="sm">
-                          <MessageSquare className="h-4 w-4 mr-2" />
-                          Connect
-                        </Button>
-                      </div>
-                    </CardFooter>
+                      <span>{post.posted}</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm">
+                        <Share2 className="h-4 w-4 mr-2" />
+                        Share
+                      </Button>
+                      <Button size="sm">
+                        <MessageSquare className="h-4 w-4 mr-2" />
+                        Connect
+                      </Button>
+                    </div>
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="collaborations" className="mt-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {collaborationPosts
+                .filter(post => post.type === "Collaboration")
+                .map((post) => (
+                  <Card key={post.id} className="overflow-hidden">
+                    {/* Same card structure as above */}
                   </Card>
                 ))}
-              </div>
-            </TabsContent>
+            </div>
+          </TabsContent>
 
-            <TabsContent value="collaborations" className="mt-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {collaborationPosts
-                  .filter(post => post.type === "Collaboration")
-                  .map((post) => (
-                    <Card key={post.id} className="overflow-hidden">
-                      {/* Same card structure as above */}
-                    </Card>
-                  ))}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="feedback" className="mt-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {collaborationPosts
-                  .filter(post => post.type === "Feedback")
-                  .map((post) => (
-                    <Card key={post.id} className="overflow-hidden">
-                      {/* Same card structure as above */}
-                    </Card>
-                  ))}
-              </div>
-            </TabsContent>
-          </Tabs>
-        </div>
-      </SidebarInset>
-    </SidebarProvider>
+          <TabsContent value="feedback" className="mt-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {collaborationPosts
+                .filter(post => post.type === "Feedback")
+                .map((post) => (
+                  <Card key={post.id} className="overflow-hidden">
+                    {/* Same card structure as above */}
+                  </Card>
+                ))}
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </HomeLayout>
   )
 }

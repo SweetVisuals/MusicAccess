@@ -11,6 +11,12 @@ import {
   DialogTitle, 
   DialogFooter 
 } from '@/components/@/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -21,35 +27,30 @@ import { Badge } from '@/components/@/ui/badge';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
-import { type Project, type UserProfile } from '@/lib/types';
+import { type Project, type UserProfile, type Track } from '@/lib/types';
 
 interface ProjectsTabProps {
   user: UserProfile;
+  projects: Project[];
   viewMode?: 'grid' | 'list';
   sortBy?: 'latest' | 'popular' | 'oldest';
   showCreateDialog: boolean;
   setShowCreateDialog: (show: boolean) => void;
+  onProjectCreated: () => void;
 }
 
-const ProjectsTab = ({ user, viewMode = 'grid', sortBy = 'latest', showCreateDialog, setShowCreateDialog }: ProjectsTabProps) => {
+const ProjectsTab = ({ user, projects, viewMode = 'grid', sortBy = 'latest', showCreateDialog, setShowCreateDialog, onProjectCreated }: ProjectsTabProps) => {
   const { profile } = useProfile();
   const { user: currentUser } = useAuth();
   const userId = user?.id;
   const isOwner = currentUser?.id === userId;
   
-  // State for projects
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  
-  // State for create project dialog is now managed by props
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    isPublic: false,
+    visibility: 'private' as 'private' | 'unlisted' | 'public',
     price: '', // New: Project price
-    allowDownloads: false, // New: Allow project downloads
   });
   
   // State for user files
@@ -64,94 +65,6 @@ const ProjectsTab = ({ user, viewMode = 'grid', sortBy = 'latest', showCreateDia
   const [currentFolder, setCurrentFolder] = useState<string | null>(null);
   const [folders, setFolders] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  
-  // Function to fetch projects with their tracks
-  const fetchProjects = async () => {
-    if (!userId) return;
-    
-    setLoading(true);
-    try {
-      // Fetch projects and creator's username in one go
-      const { data: projectsData, error: projectsError } = await supabase
-        .from('projects')
-        .select('*, profiles(*), allow_downloads')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false });
-        
-      if (projectsError) throw projectsError;
-      
-      if (!projectsData || projectsData.length === 0) {
-        setProjects([]);
-        setLoading(false);
-        return;
-      }
-      
-      // Fetch tracks for each project
-      const projectsWithTracks = await Promise.all(projectsData.map(async (project) => {
-        const creatorUsername = (project.profiles as any)?.username || 'Unknown';
-
-        let tracks: any[] = [];
-        const { data: tracksData, error: tracksError } = await supabase
-            .from('tracks')
-            .select('*')
-            .eq('project_id', project.id)
-            .order('created_at', { ascending: true });
-
-        if (tracksError) {
-            console.error('Error fetching tracks:', tracksError);
-        }
-
-        if (tracksData && tracksData.length > 0) {
-            tracks = tracksData.map((track: any) => ({
-                id: track.id,
-                title: track.title,
-                file_url: track.audio_url,
-                audioUrl: track.audio_url,
-                duration: track.duration || '0:00',
-                allow_download: track.allow_download,
-            }));
-        } else {
-            // Fallback for old projects
-            const { data: projectFiles, error: filesError } = await supabase
-                .from('project_files')
-                .select('position, files(id, name, file_url, file_type, allow_download)')
-                .eq('project_id', project.id)
-                .order('position', { ascending: true });
-
-            if (filesError) {
-                console.error('Error fetching project files for fallback:', filesError);
-            } else if (projectFiles) {
-                tracks = projectFiles.map((pf: any) => {
-                  if (!pf.files) return null; // Guard against null files
-                  return {
-                    id: pf.files.id,
-                    title: pf.files.name,
-                    file_url: pf.files.file_url,
-                    audioUrl: pf.files.file_url,
-                    duration: '0:00', // Default duration
-                    allow_download: pf.files.allow_download,
-                    position: pf.position,
-                  };
-                }).filter(Boolean); // Remove any null entries
-            }
-        }
-
-        return {
-          ...project,
-          tracks,
-          totalTracks: tracks.length,
-          creator_username: creatorUsername,
-        };
-      }));
-      
-      setProjects(projectsWithTracks || []);
-    } catch (err) {
-      console.error('Error fetching projects:', err);
-      setError('Failed to load projects');
-    } finally {
-      setLoading(false);
-    }
-  };
    
   // Fetch user's files from the 'files' table
   const fetchUserFiles = async () => {
@@ -170,7 +83,7 @@ const ProjectsTab = ({ user, viewMode = 'grid', sortBy = 'latest', showCreateDia
       const fetchedFiles = data.map(file => ({
         id: file.id,
         name: file.name,
-        type: file.file_type, // Assuming file_type is already a simplified string like 'audio', 'image'
+        type: getMimeTypeFromName(file.name), // Use helper to get full MIME type
         size: file.size || 0,
         sizeFormatted: formatBytes(file.size || 0),
         created_at: file.created_at,
@@ -285,10 +198,9 @@ const ProjectsTab = ({ user, viewMode = 'grid', sortBy = 'latest', showCreateDia
     });
   };
   
-  // Fetch projects and user files on component mount
+  // Fetch user files and folders on component mount
   useEffect(() => {
     if (userId) {
-      fetchProjects();
       fetchUserFiles();
       fetchFolders();
     }
@@ -299,25 +211,6 @@ const ProjectsTab = ({ user, viewMode = 'grid', sortBy = 'latest', showCreateDia
       fetchFolders();
     }
   }, [currentFolder, userId]);
-
-  // Effect to update projects in state when the user profile changes
-  useEffect(() => {
-    if (projects.length > 0 && user) {
-      setProjects(currentProjects =>
-        currentProjects.map(p =>
-          p.user_id === user.id
-            ? {
-                ...p,
-                profiles: {
-                  ...(p.profiles || {}),
-                  ...user,
-                },
-              }
-            : p
-        )
-      );
-    }
-  }, [user]);
   
   // Reset selected files when dialog is opened
   useEffect(() => {
@@ -328,6 +221,7 @@ const ProjectsTab = ({ user, viewMode = 'grid', sortBy = 'latest', showCreateDia
       setContractFile(null);
     }
   }, [showCreateDialog]);
+
 
 
 
@@ -355,11 +249,9 @@ const ProjectsTab = ({ user, viewMode = 'grid', sortBy = 'latest', showCreateDia
           user_id: userId,
           title: formData.title,
           description: formData.description,
-          is_public: formData.isPublic,
+          visibility: formData.visibility,
           price: formData.price ? parseFloat(formData.price) : null, // Save project price
-          allow_downloads: formData.allowDownloads, // Save download preference
-          type: 'audio',
-          genre: 'Other'
+          type: 'audio'
         });
       
       if (projectError) throw projectError;
@@ -398,36 +290,54 @@ const ProjectsTab = ({ user, viewMode = 'grid', sortBy = 'latest', showCreateDia
         for (let i = 0; i < selectedFileData.length; i++) {
           const file = selectedFileData[i];
           
-          // Add to project_files with price
-          await supabase.from('project_files').insert({
+          const rawPrice = trackPrices[file.id];
+          const trackPrice = (rawPrice && !isNaN(parseFloat(rawPrice))) ? parseFloat(rawPrice) : null;
+          const allowDownloads = trackAllowDownloads[file.id] || false;
+
+          // Add to project_files with price and download permission
+          const { error: projectFileError } = await supabase.from('project_files').insert({
             project_id: projectId,
             file_id: file.id,
             position: i + 1,
-            price: trackPrices[file.id] ? parseFloat(trackPrices[file.id]) : 0,
+            price: trackPrice,
+            allow_downloads: allowDownloads,
           });
 
+          if (projectFileError) {
+            console.error('Error inserting project file:', projectFileError);
+            toast.error(`Failed to add file ${file.name} to the project.`);
+            continue; // Skip this file and continue with the next
+          }
+
           // If it's an audio file, add it to tracks as well
-          if (file.type.startsWith('audio/')) {
-            await supabase.from('tracks').insert({
+          if (file.type && file.type.startsWith('audio/')) {
+            const allowDownloads = trackAllowDownloads[file.id] || false; // Get the download status
+            const { error: trackError } = await supabase.from('audio_tracks').insert({
               project_id: projectId,
+              user_id: userId,
               title: file.name,
               audio_url: file.url,
-              price: trackPrices[file.id] ? parseFloat(trackPrices[file.id]) : 0,
-              allow_download: trackAllowDownloads[file.id] || false, // Save individual track download preference
+              allow_download: allowDownloads, // Include allow_download directly
             });
+
+            if (trackError) {
+              console.error('Error inserting track:', trackError);
+              toast.error(`Failed to add track ${file.name} to the project.`);
+            }
           }
         }
       }
       
       toast.success("Project created successfully!");
       setShowCreateDialog(false);
-      setFormData({ title: '', description: '', isPublic: false, price: '', allowDownloads: false }); // Reset form
+      setFormData({ title: '', description: '', visibility: 'private', price: '' }); // Reset form
       setSelectedFiles([]);
       setTrackPrices({});
+      setTrackAllowDownloads({});
       setContractFile(null);
 
       // Refresh projects
-      fetchProjects();
+      onProjectCreated();
     } catch (error) {
       console.error('Error creating project:', error);
       toast.error("Failed to create project");
@@ -449,8 +359,6 @@ const ProjectsTab = ({ user, viewMode = 'grid', sortBy = 'latest', showCreateDia
   );
 
   if (!userId) return <div className="p-4">Please log in to view your projects.</div>;
-  if (loading) return <div className="p-4 animate-pulse">Loading projects...</div>;
-  if (error) return <div className="p-4 text-destructive">Error: {error}</div>;
   
   // Sort projects based on sortBy parameter
   let sortedProjects = [...projects];
@@ -488,7 +396,7 @@ const ProjectsTab = ({ user, viewMode = 'grid', sortBy = 'latest', showCreateDia
               project={project}
               variant={viewMode}
               id={project.id}
-              onDelete={fetchProjects}
+              onDelete={onProjectCreated}
             />
           ))}
         </div>
@@ -528,29 +436,6 @@ const ProjectsTab = ({ user, viewMode = 'grid', sortBy = 'latest', showCreateDia
                   placeholder="Describe your project"
                   rows={4}
                 />
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="isPublic" 
-                  checked={formData.isPublic}
-                  onCheckedChange={(checked) => 
-                    setFormData({...formData, isPublic: checked as boolean})
-                  }
-                />
-                <Label htmlFor="isPublic">Make this project public</Label>
-              </div>
-
-              {/* New checkbox for allowing downloads */}
-              <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="allowDownloads" 
-                  checked={formData.allowDownloads}
-                  onCheckedChange={(checked) => 
-                    setFormData({...formData, allowDownloads: checked as boolean})
-                  }
-                />
-                <Label htmlFor="allowDownloads">Allow project downloads</Label>
               </div>
 
               {/* New input for project price */}
@@ -681,7 +566,9 @@ const ProjectsTab = ({ user, viewMode = 'grid', sortBy = 'latest', showCreateDia
                                       className={`h-8 w-8 ${trackAllowDownloads[file.id] ? 'text-green-500' : ''}`}
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        setTrackAllowDownloads(prev => ({ ...prev, [file.id]: !prev[file.id] }))
+                                        const newState = !trackAllowDownloads[file.id];
+                                        setTrackAllowDownloads(prev => ({ ...prev, [file.id]: newState }));
+                                        toast.success(`Downloads ${newState ? 'enabled' : 'disabled'} for ${file.name}`);
                                       }}
                                     >
                                       <Download className="h-4 w-4" />
@@ -735,9 +622,30 @@ const ProjectsTab = ({ user, viewMode = 'grid', sortBy = 'latest', showCreateDia
             <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
               Cancel
             </Button>
-            <Button onClick={handleCreateProject} disabled={isSubmitting || !formData.title.trim()}>
-              {isSubmitting ? 'Creating...' : 'Create Project'}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button onClick={handleCreateProject} disabled={isSubmitting || !formData.title.trim()}>
+                {isSubmitting ? 'Creating...' : 'Create Project'}
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="flex items-center gap-2">
+                    <span>{formData.visibility.charAt(0).toUpperCase() + formData.visibility.slice(1)}</span>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setFormData(prev => ({ ...prev, visibility: 'private' }))}>
+                    Private
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setFormData(prev => ({ ...prev, visibility: 'unlisted' }))}>
+                    Unlisted
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setFormData(prev => ({ ...prev, visibility: 'public' }))}>
+                    Public
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>

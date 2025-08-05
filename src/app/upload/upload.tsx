@@ -4,44 +4,28 @@ import { useFiles } from '@/hooks/useFiles';
 import { UnifiedFileBrowser } from '@/components/upload/upload-with-browser';
 import { useToast } from '@/hooks/use-toast';
 import {
-  Menubar,
-  MenubarContent,
-  MenubarItem,
-  MenubarMenu,
-  MenubarTrigger,
-  MenubarSeparator,
-  MenubarShortcut,
-} from '@/components/ui/menubar';
-import { 
-  Upload, 
-  FolderPlus, 
-  Download, 
-  Trash2, 
-  RefreshCw, 
-  FileText, 
-  Music, 
-  Image, 
-  Video,
-  Settings,
-  HelpCircle,
-  Info,
-  AlertCircle
+  Upload,
+  FolderPlus,
+  Download,
+  Trash2,
+  RefreshCw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Progress } from '@/components/@/ui/progress';
 import { FileItem } from '@/lib/types';
+import { DashboardLayout } from '@/components/layout/DashboardLayout';
 
 export default function FileManager() {
   const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
-  const [showHelpDialog, setShowHelpDialog] = useState(false);
-  const [showAboutDialog, setShowAboutDialog] = useState(false);
+  const [showNewFolderDialog, setShowNewFolderDialog] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [selectedFiles, setSelectedFiles] = useState<FileItem[]>([]);
   const [uploadingFiles, setUploadingFiles] = useState<{name: string, progress: number}[]>([]);
+  const [currentFolder, setCurrentFolder] = useState<string | null>(null);
   const MAX_UPLOAD_FILES = 10;
   
   const {
@@ -59,6 +43,10 @@ export default function FileManager() {
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
+  };
+
+  const navigateToFolder = (folderId: string | null) => {
+    setCurrentFolder(folderId);
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -132,30 +120,6 @@ export default function FileManager() {
     }
   };
 
-  const handleNewFolder = async () => {
-    const folderName = prompt("Enter folder name:");
-    if (!folderName) return;
-    
-    const result = await createFolder(folderName);
-    if (result.success) {
-      toast({
-        title: "Folder created",
-        description: `Folder "${folderName}" was created successfully`
-      });
-      fetchFolders();
-    } else {
-      const error = result.error as string | Error | { message: string };
-      const errorMessage = 
-        typeof error === 'string' ? error :
-        error instanceof Error ? error.message :
-        error?.message || "Failed to create folder";
-      toast({
-        title: "Error creating folder",
-        description: errorMessage,
-        variant: "destructive"
-      });
-    }
-  };
 
   const handleRefresh = () => {
     fetchFiles();
@@ -247,190 +211,69 @@ export default function FileManager() {
   };
 
   return (
-    <div className="flex flex-col h-full">
-      <Menubar className="rounded-none border-b border-t-0 border-x-0">
-        <MenubarMenu>
-          <MenubarTrigger>File</MenubarTrigger>
-          <MenubarContent>
-            <MenubarItem onClick={handleUploadClick}>
-              <Upload className="h-4 w-4 mr-2" />
-              Upload Files
-              <MenubarShortcut>⌘U</MenubarShortcut>
-            </MenubarItem>
-            <MenubarItem onClick={handleNewFolder}>
-              <FolderPlus className="h-4 w-4 mr-2" />
-              New Folder
-              <MenubarShortcut>⌘N</MenubarShortcut>
-            </MenubarItem>
-            <MenubarSeparator />
-            <MenubarItem onClick={handleRefresh}>
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
-              <MenubarShortcut>⌘R</MenubarShortcut>
-            </MenubarItem>
-            <MenubarSeparator />
-            <MenubarItem onClick={handleDownloadSelected}>
-              <Download className="h-4 w-4 mr-2" />
-              Download Selected
-            </MenubarItem>
-            <MenubarItem onClick={handleDeleteSelected} className="text-red-500">
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete Selected
-              <MenubarShortcut>⌫</MenubarShortcut>
-            </MenubarItem>
-          </MenubarContent>
-        </MenubarMenu>
-        
-        <MenubarMenu>
-          <MenubarTrigger>View</MenubarTrigger>
-          <MenubarContent>
-            <MenubarItem>
-              <FileText className="h-4 w-4 mr-2" />
-              All Files
-            </MenubarItem>
-            <MenubarItem>
-              <Music className="h-4 w-4 mr-2" />
-              Audio Files
-            </MenubarItem>
-            <MenubarItem>
-              <Image className="h-4 w-4 mr-2" />
-              Images
-            </MenubarItem>
-            <MenubarItem>
-              <Video className="h-4 w-4 mr-2" />
-              Videos
-            </MenubarItem>
-          </MenubarContent>
-        </MenubarMenu>
-        
-        <MenubarMenu>
-          <MenubarTrigger>Tools</MenubarTrigger>
-          <MenubarContent>
-            <MenubarItem>
-              <Settings className="h-4 w-4 mr-2" />
-              Settings
-            </MenubarItem>
-          </MenubarContent>
-        </MenubarMenu>
-        
-        <MenubarMenu>
-          <MenubarTrigger>Help</MenubarTrigger>
-          <MenubarContent>
-            <MenubarItem onClick={() => setShowHelpDialog(true)}>
-              <HelpCircle className="h-4 w-4 mr-2" />
-              Help & Documentation
-            </MenubarItem>
-            <MenubarItem onClick={() => setShowAboutDialog(true)}>
-              <Info className="h-4 w-4 mr-2" />
-              About
-            </MenubarItem>
-          </MenubarContent>
-        </MenubarMenu>
-      </Menubar>
-
-      <input
-        type="file"
-        ref={fileInputRef}
-        className="hidden"
-        onChange={handleFileChange}
-        multiple
-        accept="audio/*,.mp3,.wav,.aiff,.flac,.ogg,.aac"
-      />
-
-      {isUploading && (
-        <div className="p-4 bg-muted/20 border-b">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">Uploading files...</span>
-              {uploadingFiles.length > 1 && (
-                <span className="text-xs text-muted-foreground">
-                  ({uploadingFiles.length} files)
-                </span>
-              )}
-            </div>
-            <span className="text-sm">{Math.round(uploadProgress)}%</span>
-          </div>
-          <Progress value={uploadProgress} className="h-2" />
-          
-          {/* Individual file progress */}
-          {uploadingFiles.length > 1 && (
-            <div className="mt-4 max-w-3xl">
-              <div className="space-y-2 max-h-32 overflow-y-auto">
-                {uploadingFiles.map((file, index) => (
-                  <div key={index} className="text-left">
-                    <div className="flex justify-between text-xs mb-1">
-                      <span className="truncate max-w-[80%]">{file.name}</span>
-                      <span>{Math.round(file.progress)}%</span>
-                    </div>
-                    <Progress 
-                      value={file.progress} 
-                      className="h-1 bg-muted/50" 
-                    />
-                  </div>
-                ))}
+    <DashboardLayout show_header={false}>
+      <div className="flex flex-col gap-4 animate-fade-in p-6 w-full">
+        <input
+          type="file"
+          ref={fileInputRef}
+          className="hidden"
+          onChange={handleFileChange}
+          multiple
+          accept="audio/*,.mp3,.wav,.aiff,.flac,.ogg,.aac"
+        />
+        {isUploading && (
+          <div className="p-4 bg-muted/20 border-b">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">Uploading files...</span>
+                {uploadingFiles.length > 1 && (
+                  <span className="text-xs text-muted-foreground">
+                    ({uploadingFiles.length} files)
+                  </span>
+                )}
               </div>
+              <span className="text-sm">{Math.round(uploadProgress)}%</span>
             </div>
-          )}
-        </div>
-      )}
-
-      <div className="flex-1 overflow-hidden">
+            <Progress value={uploadProgress} className="h-2" />
+            {uploadingFiles.length > 1 && (
+              <div className="mt-4 max-w-3xl">
+                <div className="space-y-2 max-h-32 overflow-y-auto">
+                  {uploadingFiles.map((file, index) => (
+                    <div key={index} className="text-left">
+                      <div className="flex justify-between text-xs mb-1">
+                        <span className="truncate max-w-[80%]">{file.name}</span>
+                        <span>{Math.round(file.progress)}%</span>
+                      </div>
+                      <Progress 
+                        value={file.progress} 
+                        className="h-1 bg-muted/50" 
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
         <UnifiedFileBrowser 
           files={files}
           folders={folders}
           onUpload={handleUploadClick}
-          onCreateFolder={handleNewFolder}
+          createFolder={createFolder}
           uploadFile={async (file, folderId, onProgress) => {
             try {
-              const result = await uploadFile(file, folderId, onProgress);
+              await uploadFile(file, folderId, onProgress);
               return { success: true };
             } catch (error) {
               console.error('Upload error:', error);
               return { success: false };
             }
           }}
+          onRefresh={handleRefresh}
+          onDownloadSelected={handleDownloadSelected}
+          onDeleteSelected={handleDeleteSelected}
         />
       </div>
-
-      {/* Help Dialog */}
-      <Dialog open={showHelpDialog} onOpenChange={setShowHelpDialog}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>Help & Documentation</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <h3 className="font-medium text-lg">File Browser Features</h3>
-            <div className="space-y-2">
-              <p className="text-sm"><strong>Uploading Files:</strong> Drag and drop files into the upload area or click "Upload Files" button. Maximum {MAX_UPLOAD_FILES} files at once.</p>
-              <p className="text-sm"><strong>Creating Folders:</strong> Click "New Folder" button to create a new folder.</p>
-              <p className="text-sm"><strong>Navigating:</strong> Click on folders in the sidebar to navigate between folders.</p>
-              <p className="text-sm"><strong>File Operations:</strong> Right-click or use the menu button on files/folders for options like rename, delete, etc.</p>
-              <p className="text-sm"><strong>Moving Files:</strong> Drag and drop files/folders to move them between folders.</p>
-              <p className="text-sm"><strong>Keyboard Shortcuts:</strong> Use ⌘U for upload, ⌘N for new folder, ⌘R to refresh.</p>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button onClick={() => setShowHelpDialog(false)}>Close</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* About Dialog */}
-      <Dialog open={showAboutDialog} onOpenChange={setShowAboutDialog}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>About TuneFlow File Manager</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <p className="text-sm">TuneFlow File Manager is a powerful tool for managing your audio files and projects.</p>
-            <p className="text-sm">Version: 1.0.0</p>
-            <p className="text-sm">© 2025 TuneFlow. All rights reserved.</p>
-          </div>
-          <DialogFooter>
-            <Button onClick={() => setShowAboutDialog(false)}>Close</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+    </DashboardLayout>
   );
 }

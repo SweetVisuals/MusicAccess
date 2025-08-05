@@ -1,126 +1,167 @@
-import { type Project, type Track } from '@/lib/types';
+import React, { useState, useEffect } from 'react';
+import { Project } from '@/lib/types';
+import { useAudioPlayer } from '@/contexts/audio-player-context';
 import { supabase } from '@/lib/supabase';
-import { useEffect, useState } from 'react';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { ShoppingCart, Play, MessageSquare, Share2 } from 'lucide-react';
+import { useAuth } from '@/contexts/auth-context';
 import { useCart } from '@/contexts/cart-context';
 import { toast } from 'sonner';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Gem, Download, ShoppingCart } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface ProjectViewProps {
   project: Project;
+  onAddToCart: () => void; // Add onAddToCart prop
+  onDownload: () => void; // Add onDownload prop
+  allowDownloads: boolean; // Add allowDownloads prop
 }
 
-const ProjectView = ({ project }: ProjectViewProps) => {
-  const [streamCounts, setStreamCounts] = useState<Record<string, number>>({});
-  const { addToCart } = useCart();
-
-  const handleAddTrackToCart = (track: Track) => {
-    addToCart(track.id, 'track');
-    toast.success(`${track.title} added to cart`);
-  };
-
-  const handleAddProjectToCart = () => {
-    addToCart(project.id, 'project');
-    toast.success(`${project.title} added to cart`);
-  };
+const ProjectView: React.FC<ProjectViewProps> = ({ project, onAddToCart, onDownload, allowDownloads }) => {
+  const { currentTrack, playTrack } = useAudioPlayer();
+  const { user } = useAuth();
+  const { isInCart } = useCart();
+  const [trackGems, setTrackGems] = useState<Record<string, number>>({});
+  const [trackDownloadStatus, setTrackDownloadStatus] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    const fetchStreamCounts = async () => {
-      if (!project?.tracks || project.tracks.length === 0) return;
-
-      const trackIds = project.tracks.map(t => t.id);
-      const { data, error } = await supabase
-        .from('track_streams')
-        .select('track_id, id')
-        .in('track_id', trackIds);
-
-      if (error) {
-        console.error('Error fetching stream counts:', error);
+    const fetchTrackData = async () => {
+      if (!project.audio_tracks || project.audio_tracks.length === 0) {
+        setTrackGems({});
+        setTrackDownloadStatus({});
         return;
       }
 
-      const counts = data.reduce((acc, { track_id }) => {
-        if (track_id) {
-          acc[track_id] = (acc[track_id] || 0) + 1;
-        }
-        return acc;
-      }, {} as Record<string, number>);
+      const trackIds = project.audio_tracks.map(track => track.id);
 
-      setStreamCounts(counts);
+      // Fetch gem counts
+      const { data: gemEvents } = await supabase
+        .from('analytics')
+        .select('track_id')
+        .eq('event_type', 'gem_given')
+        .in('track_id', trackIds);
+
+      const counts: Record<string, number> = {};
+      project.audio_tracks.forEach(track => {
+        counts[track.id] = 0;
+      });
+      if (gemEvents) {
+        gemEvents.forEach(event => {
+          if (event.track_id) {
+            counts[event.track_id]++;
+          }
+        });
+      }
+      setTrackGems(counts);
+
+      // Fetch download status
+      const { data: tracksData } = await supabase
+        .from('audio_tracks')
+        .select('id, allow_download')
+        .in('id', trackIds);
+
+      if (tracksData) {
+        const downloadStatus: Record<string, boolean> = {};
+        tracksData.forEach(track => {
+          downloadStatus[track.id] = track.allow_download;
+        });
+        setTrackDownloadStatus(downloadStatus);
+      }
     };
 
-    fetchStreamCounts();
-  }, [project]);
+    fetchTrackData();
+  }, [project.audio_tracks]);
 
-  if (!project) return null;
+  const handleGiveGem = async (trackId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!user) return toast.error("Please sign in to give gems");
+
+    const { data: statsData, error: statsError } = await supabase
+      .from('user_stats').select('gems').eq('user_id', user.id).single();
+    if (statsError || !statsData || statsData.gems <= 0) {
+      return toast.error("You don't have any gems to give");
+    }
+
+    await supabase.from('user_stats').update({ gems: statsData.gems - 1 }).eq('user_id', user.id);
+    await supabase.from('analytics').insert([{ event_type: 'gem_given', user_id: user.id, track_id: trackId, data: { project_id: project.id } }]);
+    
+    setTrackGems(prev => ({ ...prev, [trackId]: (prev[trackId] || 0) + 1 }));
+    window.dispatchEvent(new CustomEvent('gem-balance-update'));
+    toast.success("Gem given successfully!");
+  };
+
+  const handleTrackAddToCart = (e: React.MouseEvent, id: string, type: 'project' | 'track') => {
+    e.stopPropagation();
+    if (type === 'track') {
+      const { addToCart: trackAddToCart } = useCart();
+      trackAddToCart(id, type);
+      toast.success(`Track added to cart`);
+    }
+  };
 
   return (
-    <div className="bg-card text-card-foreground rounded-2xl shadow-lg overflow-hidden">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-0">
-        <div className="md:col-span-1 p-6 flex flex-col items-center text-center">
-          <img
-            src={project.cover_image_url || '/placeholder.svg'}
-            alt={project.title}
-            className="w-full h-auto rounded-lg shadow-md mb-4"
-          />
-          <h1 className="text-3xl font-bold tracking-tight">{project.title}</h1>
-          <div className="flex items-center gap-2 mt-2">
-            <Avatar className="h-8 w-8">
-              <AvatarImage src={project.profiles?.avatarUrl} />
-              <AvatarFallback>{project.profiles?.username?.[0]}</AvatarFallback>
-            </Avatar>
-            <span className="text-lg text-muted-foreground">{project.profiles?.username || 'Unknown Artist'}</span>
+    <div className="bg-card border rounded-lg shadow-sm overflow-hidden">
+      <div className="p-4 flex justify-between items-start">
+        <div className="flex items-center justify-between w-full"> {/* Added flex for title and button */}
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight">{project.title}</h2>
+            <p className="text-muted-foreground">{project.description}</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              {project.audio_tracks?.length || 0} track{project.audio_tracks?.length !== 1 ? 's' : ''}
+            </p>
           </div>
-          <p className="text-muted-foreground mt-4 text-sm">{project.description}</p>
-          <div className="mt-4 flex flex-wrap gap-2 justify-center">
-            {project.tags?.map(tag => (
-              <Badge key={tag} variant="secondary">{tag}</Badge>
-            ))}
+          <div className="flex items-center gap-2"> {/* Container for action buttons */}
+            <Button onClick={onAddToCart}>
+              <ShoppingCart className="mr-2 h-4 w-4" /> Add to Cart
+            </Button>
+            {allowDownloads && (
+              <Button variant="outline" onClick={onDownload}>
+                <Download className="mr-2 h-4 w-4" /> Download Project
+              </Button>
+            )}
           </div>
         </div>
-        <div className="md:col-span-2 p-6 bg-background/50">
-          <h2 className="text-2xl font-bold tracking-tight mb-4">Tracklist</h2>
-          <div className="space-y-2">
-            {project.tracks?.map(track => (
-              <div key={track.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-muted transition-colors">
-                <div className="flex items-center gap-4">
-                  <Button variant="ghost" size="icon" className="h-10 w-10">
-                    <Play className="h-5 w-5" />
+      </div>
+      <div className="border-t">
+        <div className="max-h-96 overflow-y-auto space-y-0.5 p-1 scrollbar-thin">
+          {project.audio_tracks && project.audio_tracks.length > 0 ? (
+            project.audio_tracks.map((track, index) => {
+              console.log(`ProjectView - Track ${track.title}: price=${track.price}, project.user_id=${project.user_id}, user.id=${user?.id}, isInCart=${isInCart(track.id, 'track')}`);
+              return (
+              <div key={track.id} className="flex items-center p-2 rounded-md hover:bg-muted">
+                <button
+                  onClick={() => playTrack({ ...track, duration: track.duration || '0:00', projectTitle: project.title, artworkUrl: project.artworkUrl })}
+                  className="flex-grow flex items-center gap-3 text-left"
+                >
+                  <span className="text-xs tabular-nums w-5 text-muted-foreground">{index + 1}.</span>
+                  <span className="truncate text-sm font-medium">
+                    {track.title.replace(/\.[^/.]+$/, "")}
+                  </span>
+                </button>
+                <div className="ml-auto flex items-center shrink-0 gap-2">
+                  {project.user_id !== user?.id && (
+                    <Button variant="ghost" size="icon" onClick={(e) => handleTrackAddToCart(e, track.id, 'track')} disabled={isInCart(track.id, 'track')} title={`Add ${track.title ? track.title.replace(/\.[^/.]+$/, "") : 'Track'} to cart`}>
+                      <ShoppingCart className={`h-4 w-4 ${isInCart(track.id, 'track') ? 'text-primary' : 'text-gray-400 hover:text-primary'} transition-colors`} />
+                    </Button>
+                  )}
+                  {trackDownloadStatus[track.id] && (
+                    <Button variant="ghost" size="icon" title="Download track">
+                      <Download className="h-4 w-4 text-muted-foreground" />
+                    </Button>
+                  )}
+                  <Button variant="ghost" size="icon" title="Give a gem" onClick={(e) => handleGiveGem(track.id, e)}>
+                    <Gem className={`h-4 w-4 transition-colors ${(trackGems[track.id] || 0) > 0 ? 'text-violet-500' : 'text-muted-foreground'}`} />
                   </Button>
-                  <div>
-                    <div className="font-semibold">{track.title.replace(/\.[^/.]+$/, "")}</div>
-                    <div className="text-sm text-muted-foreground">{streamCounts[track.id] || 0} streams</div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4">
-                  <Badge variant="outline" className="text-lg">${track.price || '2.99'}</Badge>
-                  <Button variant="ghost" size="icon" onClick={() => handleAddTrackToCart(track)}>
-                    <ShoppingCart className="h-5 w-5" />
-                  </Button>
+                  <span className="text-xs font-medium tabular-nums w-4 text-muted-foreground">
+                    {trackGems[track.id] || 0}
+                  </span>
                 </div>
               </div>
-            ))}
-          </div>
-          <div className="border-t mt-6 pt-6">
-            <div className="flex justify-between items-center mb-4">
-              <div className="text-3xl font-bold text-primary">${project.price || '29.99'}</div>
-              <div className="flex gap-2">
-                <Button variant="outline" size="icon">
-                  <Share2 className="h-5 w-5" />
-                </Button>
-                <Button variant="outline">
-                  <MessageSquare className="mr-2 h-5 w-5" />
-                  Message Creator
-                </Button>
-              </div>
+            );
+            })
+          ) : (
+            <div className="text-center py-4 text-sm text-muted-foreground">
+              No tracks in this project.
             </div>
-            <Button size="lg" className="w-full" onClick={handleAddProjectToCart}>
-              <ShoppingCart className="mr-2 h-5 w-5" />
-              Add Project to Cart
-            </Button>
-          </div>
+          )}
         </div>
       </div>
     </div>

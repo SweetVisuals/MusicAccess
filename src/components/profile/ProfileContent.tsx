@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { UserProfile, ProfileStats } from '@/lib/types';
+import { UserProfile, ProfileStats, Project } from '@/lib/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/@/ui/tabs';
 import {
   DndContext,
@@ -37,25 +37,27 @@ import AboutTab from './tabs/AboutTab';
 interface ProfileContentProps {
   user: UserProfile;
   stats: ProfileStats | null; // Allow stats to be null
-  tracks: any[]; // TODO: Replace 'any' with specific types (Track[])
+  projects: Project[];
   playlists: any[]; // TODO: Replace 'any' with specific types (Playlist[])
   albums: any[]; // TODO: Replace 'any' with specific types (Album[])
   showCreateProjectDialog: boolean;
   setShowCreateProjectDialog: (show: boolean) => void;
   showCreateSoundpackDialog: boolean;
   setShowCreateSoundpackDialog: (show: boolean) => void;
+  onProjectCreated: () => void;
 }
 
 const ProfileContent = ({ 
   user, 
   stats, 
-  tracks, 
+  projects,
   playlists, 
   albums,
   showCreateProjectDialog,
   setShowCreateProjectDialog,
   showCreateSoundpackDialog,
-  setShowCreateSoundpackDialog
+  setShowCreateSoundpackDialog,
+  onProjectCreated
 }: ProfileContentProps) => {
   if (!user) return null;
   const { disabledTabs = [] } = user;
@@ -194,12 +196,14 @@ const ProfileContent = ({
       </div>
 
       <TabsContent value="projects" className="animate-fade-in">
-        <ProjectsTab 
-          user={user} 
-          viewMode={viewMode} 
-          sortBy={sortBy} 
+        <ProjectsTab
+          user={user}
+          projects={projects}
+          viewMode={viewMode}
+          sortBy={sortBy}
           showCreateDialog={showCreateProjectDialog}
           setShowCreateDialog={setShowCreateProjectDialog}
+          onProjectCreated={onProjectCreated}
         />
       </TabsContent>
       <TabsContent value="playlists" className="animate-fade-in">

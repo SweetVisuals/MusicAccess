@@ -43,17 +43,8 @@ export function NavUser() {
     storageUsed,
     storageLimit,
     loadingStorage,
-    fetchStorageUsage,
-    ensureUserProfile,
     profile,
   } = useUserData()
-
-  useEffect(() => {
-    if (authUser) {
-      ensureUserProfile(authUser)
-      fetchStorageUsage(authUser.id)
-    }
-  }, [authUser, ensureUserProfile, fetchStorageUsage])
 
   if (isAuthLoading || !authUser || !profile) {
     return (

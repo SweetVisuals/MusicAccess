@@ -1,4 +1,4 @@
-import { Heart, Download, MoreVertical, Plus, User, Tag, MessageSquare, ShoppingCart, Gem, Trash2, FileUp } from 'lucide-react';
+import { Download, MoreVertical, Plus, User, Tag, MessageSquare, ShoppingCart, Gem, Trash2, FileUp, Bookmark } from 'lucide-react';
 import { Button } from '@/components/@/ui/button';
 import { Badge } from '@/components/@/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -29,7 +29,7 @@ interface ProjectCardProps {
 
 const ProjectCard = ({ project, variant, id, onDelete }: ProjectCardProps) => {
   console.log('[ProjectCard] Initial project prop:', project);
-  console.log('[ProjectCard] Initial project.tracks:', project?.tracks);
+  console.log('[ProjectCard] Initial project.audio_tracks:', project?.audio_tracks);
   const navigate = useNavigate();
   const { currentTrack, playTrack } = useAudioPlayer();
   const { user } = useAuth();
@@ -56,13 +56,13 @@ const ProjectCard = ({ project, variant, id, onDelete }: ProjectCardProps) => {
   // Fetch initial gem counts for tracks
   useEffect(() => {
     const fetchTrackGemCounts = async () => {
-      console.log('[ProjectCard] fetchTrackGemCounts - project.tracks:', project?.tracks);
-      if (!project.tracks || project.tracks.length === 0) {
+      console.log('[ProjectCard] fetchTrackGemCounts - project.audio_tracks:', project?.audio_tracks);
+      if (!project.audio_tracks || project.audio_tracks.length === 0) {
         setTrackGems({}); // Clear or set to empty if no tracks
         return;
       }
 
-      const trackIds = project.tracks.map(track => track.id).filter(id => id); // Ensure IDs are valid
+      const trackIds = project.audio_tracks.map(track => track.id).filter(id => id); // Ensure IDs are valid
       if (trackIds.length === 0) {
         console.log('[ProjectCard] fetchTrackGemCounts - no valid trackIds found.');
         setTrackGems({});
@@ -85,7 +85,7 @@ const ProjectCard = ({ project, variant, id, onDelete }: ProjectCardProps) => {
 
         const counts: Record<string, number> = {};
         // Initialize counts for all tracks in the project to 0
-        project.tracks.forEach(track => {
+        project.audio_tracks.forEach(track => {
           if (track.id) {
             counts[track.id] = 0;
           }
@@ -109,16 +109,16 @@ const ProjectCard = ({ project, variant, id, onDelete }: ProjectCardProps) => {
     };
 
     fetchTrackGemCounts();
-  }, [project.tracks]); // Dependency: project.tracks
+  }, [project.audio_tracks]); // Dependency: project.audio_tracks
 
   useEffect(() => {
     const fetchTrackDownloadStatus = async () => {
-      if (!project.tracks || project.tracks.length === 0) {
+      if (!project.audio_tracks || project.audio_tracks.length === 0) {
         setTrackDownloadStatus({});
         return;
       }
 
-      const trackIds = project.tracks.map(track => track.id).filter(id => id);
+      const trackIds = project.audio_tracks.map(track => track.id).filter(id => id);
       if (trackIds.length === 0) {
         setTrackDownloadStatus({});
         return;
@@ -126,7 +126,7 @@ const ProjectCard = ({ project, variant, id, onDelete }: ProjectCardProps) => {
 
       try {
         const { data: tracksData, error } = await supabase
-          .from('tracks')
+          .from('audio_tracks') // Changed from 'tracks' to 'audio_tracks'
           .select('id, allow_download')
           .in('id', trackIds);
 
@@ -149,7 +149,7 @@ const ProjectCard = ({ project, variant, id, onDelete }: ProjectCardProps) => {
     };
 
     fetchTrackDownloadStatus();
-  }, [project.tracks]);
+  }, [project.audio_tracks]);
 
   const handleGiveGem = async (trackId: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -251,10 +251,10 @@ const ProjectCard = ({ project, variant, id, onDelete }: ProjectCardProps) => {
 
   return (
     <>
-      <button
+      <div
         id={id}
-        onClick={() => navigate(`/view/${project.id}`)}
-        className="group relative rounded-lg overflow-hidden bg-muted/50 hover:bg-muted transition-all duration-300 shadow-sm hover:shadow-md w-full text-left"
+        onClick={() => navigate(`/view/${project.id.slice(-12)}`)}
+        className="group relative rounded-lg overflow-hidden bg-muted/50 hover:bg-muted transition-all duration-300 shadow-sm hover:shadow-md w-full text-left cursor-pointer"
       >
         <div className="p-4 space-y-3">
           {/* Project Header */}
@@ -262,7 +262,7 @@ const ProjectCard = ({ project, variant, id, onDelete }: ProjectCardProps) => {
           <div>
             <h3 className="font-medium line-clamp-1">{project.title}</h3>
             <div className="text-xs text-muted-foreground">
-              {project.tracks?.length || 0} track{(project.tracks?.length || 0) !== 1 ? 's' : ''}
+              {project.audio_tracks?.length || 0} track{(project.audio_tracks?.length || 0) !== 1 ? 's' : ''}
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -279,18 +279,14 @@ const ProjectCard = ({ project, variant, id, onDelete }: ProjectCardProps) => {
               </DropdownMenuTrigger>
               <DropdownMenuContent>
                 <DropdownMenuItem>
-                  <Heart className="h-4 w-4 mr-2" />
-                  Like
+                  <Bookmark className="h-4 w-4 mr-2" />
+                  Bookmark
                 </DropdownMenuItem>
                 <DropdownMenuItem>
                   <Plus className="h-4 w-4 mr-2" />
-                  Add to Playlist
+                  Add to Project
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setShowUploadDialog(true)}>
-                  <FileUp className="h-4 w-4 mr-2" />
-                  Upload Files
-                </DropdownMenuItem>
-                {user && user.id && (
+                {user && user.id === project.user_id && (
                   <DropdownMenuItem 
                     className="text-red-500"
                     onClick={handleDeleteProject}
@@ -309,7 +305,7 @@ const ProjectCard = ({ project, variant, id, onDelete }: ProjectCardProps) => {
         <div className="border-t pt-3">
           <div className="max-h-40 overflow-y-auto space-y-0.5 bg-background/50 rounded-lg p-1 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
             {/* Show tracks if available */}
-            {project.tracks?.slice(0, 10).map((track: any, index: number) => (
+            {project.audio_tracks?.slice(0, 10).map((track, index) => (
               <div key={track.id} className="flex items-center">
                 <div className="flex items-center w-full">
                   <button
@@ -319,9 +315,10 @@ const ProjectCard = ({ project, variant, id, onDelete }: ProjectCardProps) => {
                       playTrack({
                         ...track,
                         title: track.title ? track.title.replace(/\.[^/.]+$/, "") : '', // Remove file extension from title
-                        audioUrl: track.file_url || track.audioUrl, // Map file_url to audioUrl
+                        audioUrl: track.file_url || track.audio_url, // Map file_url to audioUrl
                         projectTitle: project.title,
-                        artworkUrl: project.artworkUrl
+                        artworkUrl: project.artworkUrl,
+                        duration: track.duration || '0:00', // Ensure duration is a string
                       });
                       // Scroll to bottom to ensure player is visible
                       setTimeout(() => {
@@ -350,7 +347,7 @@ const ProjectCard = ({ project, variant, id, onDelete }: ProjectCardProps) => {
                   >
                     <div className="flex items-center gap-2 w-full min-w-0"> {/* Container for track info with min-w-0 to enable truncation */}
                       <span className={`text-xs tabular-nums w-6 shrink-0 ${currentTrack?.id === track.id ? 'text-white/80' : 'text-muted-foreground/60 group-hover/track:text-white/80'}`}>{index + 1}.</span>
-                      <span className={`text-xs tabular-nums w-10 shrink-0 ${currentTrack?.id === track.id ? 'text-white/90' : 'text-muted-foreground/75 group-hover/track:text-white/90'}`}>{track.duration}</span>
+                      <span className={`text-xs tabular-nums w-10 shrink-0 ${currentTrack?.id === track.id ? 'text-white/90' : 'text-muted-foreground/75 group-hover/track:text-white/90'}`}>{track.duration || '0:00'}</span>
                       <span className="truncate text-sm group-hover/track:text-white transition-colors"> {/* Removed flex-1 and rely on parent's width constraints */}
                         {track.title ? track.title.replace(/\.[^/.]+$/, "") : ''}
                       </span>
@@ -358,8 +355,8 @@ const ProjectCard = ({ project, variant, id, onDelete }: ProjectCardProps) => {
                   </button>
                   
                   <div className="ml-auto flex items-center shrink-0">
-                    {/* Download Button */}
-                    {project.allow_downloads && trackDownloadStatus[track.id] && (
+                    {/* Individual Track Download Button */}
+                    {trackDownloadStatus[track.id] && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -402,9 +399,9 @@ const ProjectCard = ({ project, variant, id, onDelete }: ProjectCardProps) => {
                 </div>
               </div>
             ))}
-            {(!project.tracks || project.tracks.length === 0) ? (
+            {(!project.audio_tracks || project.audio_tracks.length === 0) ? (
               <div className="text-center py-4 text-sm text-muted-foreground">
-                No content available
+                No tracks available
               </div>
             ) : null}
           </div>
@@ -459,14 +456,7 @@ const ProjectCard = ({ project, variant, id, onDelete }: ProjectCardProps) => {
                 )}
               </Tooltip>
             </TooltipProvider>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              title="Contact Creator"
-            >
-              <MessageSquare className="h-4 w-4 text-muted-foreground hover:text-primary transition-colors" />
-            </Button>
+            {/* Contact Creator button removed as per request */}
             {project.allow_downloads && (
                 <TooltipProvider>
                   <Tooltip>
@@ -493,7 +483,7 @@ const ProjectCard = ({ project, variant, id, onDelete }: ProjectCardProps) => {
           </div>
           </div>
         </div>
-      </button>
+      </div>
       <ProjectDetailCard
         project={project}
         isOpen={isDetailViewOpen}

@@ -30,10 +30,10 @@ interface SettingsDialogContentProps {
 export function SettingsDialogContent({ updateProfile, profile, onClose }: SettingsDialogContentProps) {
   const [formData, setFormData] = useState<FormData>(() => ({
     id: profile?.id || '',
-    name: profile?.name || '',
+    full_name: profile?.full_name || '',
     bio: profile?.bio || '',
     location: profile?.location || '',
-    professionalTitle: profile?.professionalTitle || '',
+    professional_title: profile?.professional_title || '',
     genres: profile?.genres || [],
     instruments: profile?.instruments || [],
     yearsOfExperience: profile?.yearsOfExperience || 0,
@@ -66,7 +66,7 @@ export function SettingsDialogContent({ updateProfile, profile, onClose }: Setti
   const handleSave = async () => {
     setLoading(true);
     try {
-      await updateProfile({...profile, ...formData});
+      await updateProfile({ ...formData });
       setSuccess(true);
       setTimeout(() => {
         setSuccess(false);
@@ -174,12 +174,12 @@ export function SettingsDialogContent({ updateProfile, profile, onClose }: Setti
         return (
           <div className="space-y-4 p-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
+              <Label htmlFor="full_name">Name</Label>
               <Input
-                id="name"
+                id="full_name"
                 type="text"
-                value={formData.name}
-                onChange={(e) => handleInputChange("name", e.target.value)}
+                value={formData.full_name}
+                onChange={(e) => handleInputChange("full_name", e.target.value)}
                 disabled={loading}
               />
             </div>
@@ -216,12 +216,12 @@ export function SettingsDialogContent({ updateProfile, profile, onClose }: Setti
         return (
           <div className="space-y-4 p-4">
             <div className="space-y-2">
-              <Label htmlFor="professionalTitle">Professional Title</Label>
+              <Label htmlFor="professional_title">Professional Title</Label>
               <Input
-                id="professionalTitle"
+                id="professional_title"
                 type="text"
-                value={formData.professionalTitle}
-                onChange={(e) => handleInputChange("professionalTitle", e.target.value)}
+                value={formData.professional_title}
+                onChange={(e) => handleInputChange("professional_title", e.target.value)}
                 placeholder="e.g. Music Producer, Sound Engineer"
                 disabled={loading}
               />

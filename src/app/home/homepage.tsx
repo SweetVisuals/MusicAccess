@@ -1,13 +1,12 @@
 import { useAuth } from "@/contexts/auth-context"
-import { SiteHeader } from "@/components/homepage/site-header"
-import { AppSidebar } from "@/components/homepage/app-sidebar"
-import { SidebarInset, SidebarProvider } from "@/components/@/ui/sidebar"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/@/ui/avatar"
 import { Badge } from "@/components/@/ui/badge"
 import { Star, Headphones, Music, Mic2, TrendingUp, Rocket } from "lucide-react"
 import ProjectCard from "@/components/profile/music/ProjectCard"
+import { useNavigate } from "react-router-dom"
+import { HomeLayout } from "@/components/layout/HomeLayout"
 
 const topProducers = [
   {
@@ -37,12 +36,15 @@ const categories = [
   { name: "Beats & Instrumentals", icon: Music, count: 1245 },
   { name: "Vocal Production", icon: Mic2, count: 856 },
   { name: "Mixing & Mastering", icon: Headphones, count: 932 },
-  { name: "Sound Design", icon: Star, count: 647 }
+  { name: "Sound Packs", icon: Rocket, count: 647 }
 ];
 
 const trendingProjects = [
   {
     id: "1",
+    user_id: "user1", // Placeholder
+    created_at: new Date().toISOString(), // Placeholder
+    updated_at: new Date().toISOString(), // Placeholder
     title: "Summer Vibes EP",
     artworkUrl: "https://images.pexels.com/photos/1626481/pexels-photo-1626481.jpeg",
     tracks: [
@@ -60,6 +62,9 @@ const trendingProjects = [
   },
   {
     id: "2",
+    user_id: "user2", // Placeholder
+    created_at: new Date().toISOString(), // Placeholder
+    updated_at: new Date().toISOString(), // Placeholder
     title: "Late Night Beats",
     artworkUrl: "https://images.pexels.com/photos/1389429/pexels-photo-1389429.jpeg",
     tracks: [
@@ -77,6 +82,9 @@ const trendingProjects = [
   },
   {
     id: "3",
+    user_id: "user3", // Placeholder
+    created_at: new Date().toISOString(), // Placeholder
+    updated_at: new Date().toISOString(), // Placeholder
     title: "Soul Sessions",
     artworkUrl: "https://images.pexels.com/photos/1763075/pexels-photo-1763075.jpeg",
     tracks: [
@@ -94,6 +102,9 @@ const trendingProjects = [
   },
   {
     id: "4",
+    user_id: "user4", // Placeholder
+    created_at: new Date().toISOString(), // Placeholder
+    updated_at: new Date().toISOString(), // Placeholder
     title: "Electronic Dreams",
     artworkUrl: "https://images.pexels.com/photos/1694900/pexels-photo-1694900.jpeg",
     tracks: [
@@ -111,6 +122,9 @@ const trendingProjects = [
   },
   {
     id: "5",
+    user_id: "user5", // Placeholder
+    created_at: new Date().toISOString(), // Placeholder
+    updated_at: new Date().toISOString(), // Placeholder
     title: "Urban Nights",
     artworkUrl: "https://images.pexels.com/photos/1537638/pexels-photo-1537638.jpeg",
     tracks: [
@@ -128,6 +142,9 @@ const trendingProjects = [
   },
   {
     id: "6",
+    user_id: "user6", // Placeholder
+    created_at: new Date().toISOString(), // Placeholder
+    updated_at: new Date().toISOString(), // Placeholder
     title: "Acoustic Stories",
     artworkUrl: "https://images.pexels.com/photos/1751731/pexels-photo-1751731.jpeg",
     tracks: [
@@ -145,6 +162,9 @@ const trendingProjects = [
   },
   {
     id: "7",
+    user_id: "user7", // Placeholder
+    created_at: new Date().toISOString(), // Placeholder
+    updated_at: new Date().toISOString(), // Placeholder
     title: "Jazz Fusion",
     artworkUrl: "https://images.pexels.com/photos/1644616/pexels-photo-1644616.jpeg",
     tracks: [
@@ -162,6 +182,9 @@ const trendingProjects = [
   },
   {
     id: "8",
+    user_id: "user8", // Placeholder
+    created_at: new Date().toISOString(), // Placeholder
+    updated_at: new Date().toISOString(), // Placeholder
     title: "Future Bass",
     artworkUrl: "https://images.pexels.com/photos/1649771/pexels-photo-1649771.jpeg",
     tracks: [
@@ -181,86 +204,89 @@ const trendingProjects = [
 
 export default function HomePage() {
   const { user } = useAuth()
+  const navigate = useNavigate()
+
+  const handleCategoryClick = (categoryName: string) => {
+    const path = `/home/${categoryName.toLowerCase().replace(/ & /g, '-').replace(/ /g, '-')}`;
+    navigate(path);
+  };
 
   return (
-    <SidebarProvider>
-      <AppSidebar variant="inset" />
-      <SidebarInset>
-        <div className="@container/main flex flex-1 flex-col">
-          <SiteHeader />
-          
-          <div className="flex-1 space-y-8 p-8 pt-6">
-            {/* Categories */}
-            <div>
-              <h2 className="text-2xl font-bold tracking-tight mb-4">Browse</h2>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {categories.map((category) => (
-                  <Card key={category.name} className="hover:bg-accent transition-colors cursor-pointer">
-                    <CardContent className="flex items-center gap-4 p-4">
-                      <category.icon className="h-8 w-8 text-primary" />
-                      <div>
-                        <h3 className="font-medium">{category.name}</h3>
-                        <p className="text-sm text-muted-foreground">{category.count} items</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-
-            {/* Top Producers */}
-            <div>
-              <h2 className="text-2xl font-bold tracking-tight mb-4">Top Producers</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {topProducers.map((producer) => (
-                  <Card key={producer.name}>
-                    <CardContent className="flex items-center gap-4 p-4">
-                      <Avatar className="h-12 w-12">
-                        <AvatarImage src={producer.avatar} />
-                        <AvatarFallback>{producer.name[0]}</AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1">
-                        <h3 className="font-medium">{producer.name}</h3>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Badge variant="secondary">{producer.genre}</Badge>
-                          <span className="flex items-center gap-1">
-                            <Star className="h-3 w-3 fill-current text-yellow-500" />
-                            {producer.rating}
-                          </span>
-                        </div>
-                      </div>
-                      <Button variant="outline" size="sm">
-                        View Profile
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-
-            {/* Trending Now */}
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <TrendingUp className="h-6 w-6 text-primary" />
-                  <h2 className="text-2xl font-bold tracking-tight">Trending Now</h2>
-                </div>
-                <Button variant="outline">View All</Button>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {trendingProjects.map((project) => (
-                  <ProjectCard 
-                    key={project.id}
-                    project={project}
-                    variant="grid"
-                    id={project.id}
-                  />
-                ))}
-              </div>
-            </div>
+    <HomeLayout>
+      <div className="flex-1 space-y-8 p-8 pt-6">
+        {/* Categories */}
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight mb-4">Browse</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {categories.map((category) => (
+              <Card 
+                key={category.name} 
+                className="hover:bg-accent transition-colors cursor-pointer"
+                onClick={() => handleCategoryClick(category.name)}
+              >
+                <CardContent className="flex items-center gap-4 p-4">
+                  <category.icon className="h-8 w-8 text-primary" />
+                  <div>
+                    <h3 className="font-medium">{category.name}</h3>
+                    <p className="text-sm text-muted-foreground">{category.count} items</p>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </div>
-      </SidebarInset>
-    </SidebarProvider>
+
+        {/* Top Producers */}
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight mb-4">Top Producers</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {topProducers.map((producer) => (
+              <Card key={producer.name}>
+                <CardContent className="flex items-center gap-4 p-4">
+                  <Avatar className="h-12 w-12">
+                    <AvatarImage src={producer.avatar} />
+                    <AvatarFallback>{producer.name[0]}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1">
+                    <h3 className="font-medium">{producer.name}</h3>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Badge variant="secondary">{producer.genre}</Badge>
+                      <span className="flex items-center gap-1">
+                        <Star className="h-3 w-3 fill-current text-yellow-500" />
+                        {producer.rating}
+                      </span>
+                    </div>
+                  </div>
+                  <Button variant="outline" size="sm">
+                    View Profile
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+
+        {/* Trending Now */}
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-6 w-6 text-primary" />
+              <h2 className="text-2xl font-bold tracking-tight">Trending Now</h2>
+            </div>
+            <Button variant="outline">View All</Button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {trendingProjects.map((project) => (
+              <ProjectCard 
+                key={project.id}
+                project={project}
+                variant="grid"
+                id={project.id}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+    </HomeLayout>
   )
 }

@@ -1,5 +1,4 @@
 import { AppSidebar } from "@/components/dashboard/layout/app-sidebar"
-import { SiteHeader } from "@/components/dashboard/layout/site-header"
 import { SidebarInset, SidebarProvider } from "@/components/@/ui/sidebar"
 import { Upload, Folder, File } from "lucide-react"
 import { UnifiedFileBrowser } from "@/components/upload/upload-with-browser"
@@ -31,7 +30,6 @@ export default function Page() {
     <SidebarProvider>
       <AppSidebar variant="inset" />
       <SidebarInset>
-        <SiteHeader />
         <div className="flex flex-1 flex-col">
           <div className="@container/main flex flex-1 flex-col gap-2">
               <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">

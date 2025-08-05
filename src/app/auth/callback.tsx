@@ -1,6 +1,7 @@
 import { useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { createClient } from "@supabase/supabase-js"
+import { toast } from "sonner"
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -11,8 +12,19 @@ export default function AuthCallback() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_IN") {
+        navigate("/user/dashboard")
+      } else if (event === "USER_UPDATED") {
+        // Handle email confirmation
+        toast.success("Email confirmed successfully!")
+        navigate("/auth/login")
+      }
+    })
+
+    // Also check current session in case the page reloads after confirmation
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
         navigate("/user/dashboard")
       }
     })

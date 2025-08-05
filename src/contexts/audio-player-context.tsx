@@ -5,7 +5,7 @@ import { useAuth } from './auth-context';
 export type Track = {
   id: string;
   title: string;
-  duration: string;
+  duration: number; // Changed from string to number
   artworkUrl?: string;
   artist?: string;
   projectTitle?: string;
@@ -21,6 +21,7 @@ type AudioPlayerContextType = {
   progress: number;
   duration: number;
   seek: (time: number) => void;
+  setCurrentTrack: (track: Track | null) => void; // Add setCurrentTrack to the type
 };
 
 const AudioPlayerContext = createContext<AudioPlayerContextType>({
@@ -31,6 +32,7 @@ const AudioPlayerContext = createContext<AudioPlayerContextType>({
   progress: 0,
   duration: 0,
   seek: () => {},
+  setCurrentTrack: () => {}, // Initialize setCurrentTrack
 });
 
 export function AudioPlayerProvider({ children }: { children: React.ReactNode }) {
@@ -162,7 +164,8 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
         togglePlay,
         progress,
         duration,
-        seek
+        seek,
+        setCurrentTrack // Expose setCurrentTrack
       }}
     >
       {children}

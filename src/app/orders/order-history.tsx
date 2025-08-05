@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { AppSidebar } from "@/components/homepage/app-sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/@/ui/sidebar";
-import { SiteHeader } from "@/components/homepage/site-header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/@/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/@/ui/badge";
@@ -221,7 +220,6 @@ export default function OrderHistoryPage() {
     <SidebarProvider>
       <AppSidebar variant="inset" />
       <SidebarInset>
-        <SiteHeader />
         <div className="flex flex-1 flex-col">
           <div className="@container/main flex flex-1 flex-col gap-4 animate-fade-in p-6">
             {/* Header */}

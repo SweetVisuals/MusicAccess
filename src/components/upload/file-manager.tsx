@@ -4,8 +4,9 @@ import { useAuth } from "@/contexts/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/@/ui/button";
 import { Progress } from '@/components/@/ui/progress';
-import { AlertCircle, File, Trash2, Upload } from 'lucide-react';
+import { AlertCircle, File, Folder, Trash2, Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useStorage } from '@/contexts/storage-context';
 import { supabase } from '@/lib/supabase';
 
 interface FileManagerProps {
@@ -26,6 +27,7 @@ export function FileManager({ className }: FileManagerProps) {
   const [isDragOverlay, setIsDragOverlay] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
+  const { triggerStorageUpdate } = useStorage();
   const [files, setFiles] = useState<FileItem[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
@@ -106,8 +108,9 @@ export function FileManager({ className }: FileManagerProps) {
         description: 'Files uploaded successfully'
       });
 
-      // Reload files
+      // Reload files and trigger storage update
       loadFiles();
+      triggerStorageUpdate();
     } catch (error: any) {
       toast({
         title: 'Error uploading files',
@@ -276,6 +279,7 @@ export function FileManager({ className }: FileManagerProps) {
                     });
 
                     loadFiles();
+                    triggerStorageUpdate();
                   } catch (error: any) {
                     toast({
                       title: 'Error deleting file',

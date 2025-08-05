@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { AppSidebar } from "@/components/dashboard/layout/app-sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/@/ui/sidebar";
-import { SiteHeader } from "@/components/dashboard/layout/site-header";
 import { Card, CardContent } from "@/components/@/ui/card";
 import { Button } from "@/components/@/ui/button";
 import { Input } from "@/components/@/ui/input";
@@ -283,7 +282,6 @@ export default function MessagesPage() {
     <SidebarProvider>
       <AppSidebar variant="inset" />
       <SidebarInset>
-        <SiteHeader />
         <div className="flex flex-1 flex-col">
           <div className="@container/main flex flex-1 animate-fade-in">
             <div className="flex h-[calc(100vh-64px)] overflow-hidden">
@@ -318,7 +316,7 @@ export default function MessagesPage() {
                       <TabsTrigger value="unread" className="flex-1">
                         Unread
                         {unreadCount > 0 && (
-                          <Badge variant="secondary\" className="ml-1">{unreadCount}</Badge>
+                          <Badge variant="secondary" className="ml-1">{unreadCount}</Badge>
                         )}
                       </TabsTrigger>
                       <TabsTrigger value="pinned" className="flex-1">Pinned</TabsTrigger>

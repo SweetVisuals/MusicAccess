@@ -1,6 +1,4 @@
-import { AppSidebar } from "@/components/homepage/app-sidebar"
-import { SidebarInset, SidebarProvider } from "@/components/@/ui/sidebar"
-import { SiteHeader } from "@/components/homepage/site-header"
+import { HomeLayout } from "@/components/layout/HomeLayout"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/@/ui/card"
 import { Button } from "@/components/@/ui/button"
 import { Input } from "@/components/@/ui/input"
@@ -117,139 +115,135 @@ const platforms = [
 
 export default function MarketingPage() {
   return (
-    <SidebarProvider>
-      <AppSidebar variant="inset" />
-      <SidebarInset>
-        <SiteHeader />
-        <div className="flex-1 space-y-8 p-8 pt-6">
-          {/* Header Section */}
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <div>
-                <h1 className="text-3xl font-bold">Marketing Platforms</h1>
-                <p className="text-muted-foreground">Connect with top music promotion platforms and influencers</p>
-              </div>
-              <div className="flex gap-4">
-                <div className="relative w-64">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input placeholder="Search platforms..." className="pl-10" />
-                </div>
-                <Button>
-                  List Your Platform
-                </Button>
-              </div>
+    <HomeLayout>
+      <div className="flex-1 space-y-8 p-8 pt-6">
+        {/* Header Section */}
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-bold">Marketing Platforms</h1>
+              <p className="text-muted-foreground">Connect with top music promotion platforms and influencers</p>
             </div>
-
-            {/* Stats Overview */}
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              <Card>
-                <CardContent className="flex items-center gap-4 p-6">
-                  <TrendingUp className="h-8 w-8 text-primary" />
-                  <div>
-                    <p className="text-2xl font-bold">5M+</p>
-                    <p className="text-sm text-muted-foreground">Total Reach</p>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="flex items-center gap-4 p-6">
-                  <Users className="h-8 w-8 text-primary" />
-                  <div>
-                    <p className="text-2xl font-bold">50+</p>
-                    <p className="text-sm text-muted-foreground">Active Platforms</p>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="flex items-center gap-4 p-6">
-                  <PlayCircle className="h-8 w-8 text-primary" />
-                  <div>
-                    <p className="text-2xl font-bold">10K+</p>
-                    <p className="text-sm text-muted-foreground">Artists Promoted</p>
-                  </div>
-                </CardContent>
-              </Card>
+            <div className="flex gap-4">
+              <div className="relative w-64">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input placeholder="Search platforms..." className="pl-10" />
+              </div>
+              <Button>
+                List Your Platform
+              </Button>
             </div>
           </div>
 
-          {/* Platforms Grid */}
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            {platforms.map((platform) => (
-              <Card key={platform.id} className="overflow-hidden">
-                <CardHeader className="border-b bg-muted/50 p-6">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-4">
-                      <Avatar className="h-12 w-12">
-                        <AvatarImage src={platform.avatar} />
-                        <AvatarFallback>
-                          <platform.icon className="h-6 w-6" />
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <CardTitle className="flex items-center gap-2">
-                          {platform.name}
-                          <Badge variant="secondary" className="ml-2">
-                            <platform.icon className="mr-1 h-3 w-3" />
-                            {platform.type}
-                          </Badge>
-                        </CardTitle>
-                        <CardDescription className="mt-1">
-                          {platform.subscribers} subscribers
-                        </CardDescription>
-                      </div>
-                    </div>
-                    <Button variant="outline" size="sm">
-                      <MessageSquare className="mr-2 h-4 w-4" />
-                      Contact
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent className="grid gap-4 p-6">
-                  <p className="text-sm text-muted-foreground">{platform.description}</p>
-                  
-                  <div className="grid gap-4">
-                    <h4 className="font-medium">Available Services</h4>
-                    <div className="grid gap-2">
-                      {platform.services.map((service, index) => (
-                        <div key={index} className="flex items-center justify-between rounded-lg border p-3">
-                          <div>
-                            <p className="font-medium">{service.name}</p>
-                            <p className="text-sm text-muted-foreground">{service.reach}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-medium">${service.price}</p>
-                            <Button variant="outline" size="sm" className="mt-2">
-                              Book Now
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="mt-4">
-                    <h4 className="font-medium mb-2">Platform Stats</h4>
-                    <div className="grid grid-cols-3 gap-4 text-sm">
-                      <div className="rounded-lg border p-2 text-center">
-                        <p className="font-medium">{platform.stats.avgViews}</p>
-                        <p className="text-muted-foreground">Avg. Views</p>
-                      </div>
-                      <div className="rounded-lg border p-2 text-center">
-                        <p className="font-medium">{platform.stats.engagement}</p>
-                        <p className="text-muted-foreground">Engagement</p>
-                      </div>
-                      <div className="rounded-lg border p-2 text-center">
-                        <p className="font-medium">{platform.stats.audience}</p>
-                        <p className="text-muted-foreground">Audience</p>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+          {/* Stats Overview */}
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <Card>
+              <CardContent className="flex items-center gap-4 p-6">
+                <TrendingUp className="h-8 w-8 text-primary" />
+                <div>
+                  <p className="text-2xl font-bold">5M+</p>
+                  <p className="text-sm text-muted-foreground">Total Reach</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="flex items-center gap-4 p-6">
+                <Users className="h-8 w-8 text-primary" />
+                <div>
+                  <p className="text-2xl font-bold">50+</p>
+                  <p className="text-sm text-muted-foreground">Active Platforms</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="flex items-center gap-4 p-6">
+                <PlayCircle className="h-8 w-8 text-primary" />
+                <div>
+                  <p className="text-2xl font-bold">10K+</p>
+                  <p className="text-sm text-muted-foreground">Artists Promoted</p>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
-      </SidebarInset>
-    </SidebarProvider>
+
+        {/* Platforms Grid */}
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          {platforms.map((platform) => (
+            <Card key={platform.id} className="overflow-hidden">
+              <CardHeader className="border-b bg-muted/50 p-6">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-4">
+                    <Avatar className="h-12 w-12">
+                      <AvatarImage src={platform.avatar} />
+                      <AvatarFallback>
+                        <platform.icon className="h-6 w-6" />
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        {platform.name}
+                        <Badge variant="secondary" className="ml-2">
+                          <platform.icon className="mr-1 h-3 w-3" />
+                          {platform.type}
+                        </Badge>
+                      </CardTitle>
+                      <CardDescription className="mt-1">
+                        {platform.subscribers} subscribers
+                      </CardDescription>
+                    </div>
+                  </div>
+                  <Button variant="outline" size="sm">
+                    <MessageSquare className="mr-2 h-4 w-4" />
+                    Contact
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="grid gap-4 p-6">
+                <p className="text-sm text-muted-foreground">{platform.description}</p>
+                
+                <div className="grid gap-4">
+                  <h4 className="font-medium">Available Services</h4>
+                  <div className="grid gap-2">
+                    {platform.services.map((service, index) => (
+                      <div key={index} className="flex items-center justify-between rounded-lg border p-3">
+                        <div>
+                          <p className="font-medium">{service.name}</p>
+                          <p className="text-sm text-muted-foreground">{service.reach}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-medium">${service.price}</p>
+                          <Button variant="outline" size="sm" className="mt-2">
+                            Book Now
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mt-4">
+                  <h4 className="font-medium mb-2">Platform Stats</h4>
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div className="rounded-lg border p-2 text-center">
+                      <p className="font-medium">{platform.stats.avgViews}</p>
+                      <p className="text-muted-foreground">Avg. Views</p>
+                    </div>
+                    <div className="rounded-lg border p-2 text-center">
+                      <p className="font-medium">{platform.stats.engagement}</p>
+                      <p className="text-muted-foreground">Engagement</p>
+                    </div>
+                    <div className="rounded-lg border p-2 text-center">
+                      <p className="font-medium">{platform.stats.audience}</p>
+                      <p className="text-muted-foreground">Audience</p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    </HomeLayout>
   )
 }

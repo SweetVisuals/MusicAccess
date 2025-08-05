@@ -7,9 +7,10 @@ export interface Profile {
   full_name: string;  // Changed from 'name' to 'full_name' to match database schema
   username: string;
   bio: string;
-  location?: string;
-  website_url?: string;
+  location: string | null;
+  website_url: string | null;
   avatarUrl: string;
+  profile_url?: string; // Added to match usage in messages.tsx
   bannerUrl: string;
   createdAt: string;
   updatedAt: string;
@@ -47,6 +48,7 @@ export interface Profile {
     showStats: boolean;
     profileVisibility: 'public' | 'private' | 'connections_only';
   };
+  followers_count?: number;
 }
 
 export type UserProfile = Profile & {
@@ -65,7 +67,7 @@ export interface Project {
   created_at: string;
   updated_at: string;
   creator_username?: string;
-  tracks?: any[];
+  audio_tracks?: Track[];
   totalTracks?: number;
   artworkUrl?: string;
   allow_downloads?: boolean;
@@ -73,6 +75,7 @@ export interface Project {
   profiles?: Profile; // Changed from creator to profiles to match usage
   tags?: string[];
   price?: number;
+  gems?: number;
 }
 
 export interface Rates {
@@ -80,14 +83,18 @@ export interface Rates {
   project?: number;
 }
 
-export interface ProfileStats {
+export interface UserStats {
   user_id: string;
   streams: number;
   followers: number;
+  following: number;
   gems: number;
   tracks: number;
   playlists: number;
   albums: number;
+  wallet_balance: number;
+  profile_url: string | null;
+  banner_url: string | null;
 }
 
 export interface FileItem {
@@ -137,12 +144,14 @@ export interface DatabaseFolder {
 export interface Track {
   id: string;
   user_id: string;
+  project_id: string;
   title: string;
   created_at: string;
   // Add other relevant track properties here
   artist?: string;
-  duration?: number; // in seconds
+  duration?: string; // in seconds
   audio_url?: string;
+  file_url?: string;
   cover_art_url?: string;
   price?: number;
   allow_download?: boolean;
@@ -186,12 +195,33 @@ export interface Service {
   updated_at: string;
   rating?: number;
   reviews?: number;
+  tags?: string[]; // Added this line to ensure tags property exists
+}
+
+export interface CartItem {
+  id: string;
+  title: string;
+  price: number;
+  producer_name?: string;
+  project_id?: string;
+  track_count?: number;
   tags?: string[];
+}
+
+export interface SearchResultItem {
+  id: string;
+  type: 'project' | 'profile';
+  title: string;
+  description: string;
+  cover_image_url: string;
+  username: string;
+  full_name: string;
+  bio: string;
 }
 
 export interface ProfileWithStatsResponse {
   profile: Profile;
-  stats: ProfileStats | null;
+  stats: UserStats | null;
 }
 
 // Messaging types
@@ -201,6 +231,8 @@ export interface Conversation {
   updated_at: string;
   participants: ConversationParticipant[];
   last_message?: Message;
+  is_pinned?: boolean; // Added to match usage in messages.tsx
+  unread_count?: number; // Added to match usage in messages.tsx
 }
 
 export interface ConversationParticipant {
@@ -233,4 +265,16 @@ export interface MessageAttachment {
   file_name: string;
   file_size?: number;
   created_at: string;
+}
+
+export interface UploadedFile {
+  id: string;
+  name: string;
+  file_url: string;
+  file_path: string | null;
+  size: number;
+  file_type: string;
+  user_id: string;
+  created_at: string;
+  folder_id: string | null;
 }

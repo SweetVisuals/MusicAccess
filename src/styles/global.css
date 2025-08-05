@@ -97,6 +97,25 @@
   --shadow-2xl: 0px 1px 3px 0px hsl(0 0% 0% / 0.43);
 }
 
+/* Custom scrollbar styles */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: var(--background);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: hsl(var(--primary) / 0.5);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--primary));
+}
+
 body {
   letter-spacing: var(--tracking-normal);
 }
@@ -229,6 +248,25 @@ body {
 
 .animate-pulse {
   animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* Page transition animations */
+.page-transition-enter {
+  opacity: 0;
+}
+
+.page-transition-enter-active {
+  opacity: 1;
+  transition: opacity 300ms ease-in-out;
+}
+
+.page-transition-exit {
+  opacity: 1;
+}
+
+.page-transition-exit-active {
+  opacity: 0;
+  transition: opacity 300ms ease-in-out;
 }
 
 /* Modern glass effect */

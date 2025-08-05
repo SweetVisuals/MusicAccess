@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react"
+import { Link } from "react-router-dom"
 import { MessageSquare, Bell, User, type LucideIcon } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/auth-context"
@@ -90,7 +91,7 @@ export function NavDocuments() {
           // Loading skeletons
           Array(3).fill(0).map((_, i) => (
             <SidebarMenuItem key={`skeleton-${i}`}>
-              <div className="flex items-center gap-3 p-2 w-full">
+              <div className="flex items-center gap-3 p-1 w-full">
                 <Skeleton className="h-8 w-8 rounded-full" />
                 <div className="space-y-1 flex-1">
                   <Skeleton className="h-3 w-24" />
@@ -108,24 +109,26 @@ export function NavDocuments() {
         ) : (
           followingUsers.map((followingUser) => (
             <SidebarMenuItem key={followingUser.id}>
-              <div className="flex items-center justify-between p-2 w-full rounded-md hover:bg-sidebar-accent group/user transition-colors">
-                <div className="flex items-center gap-3">
+              <div className="flex items-center justify-between w-full rounded-md hover:bg-sidebar-accent group/user transition-colors">
+                <Link to={`/user/${followingUser.username}`} className="flex items-center gap-3 p-1">
                   <Avatar className="h-8 w-8">
                     <AvatarImage src={followingUser.profile_url || ''} />
                     <AvatarFallback>
                       {followingUser.full_name?.[0] || followingUser.username?.[0] || 'U'}
                     </AvatarFallback>
                   </Avatar>
-                  <div>
-                    <div className="flex items-center gap-2">
+                  <div className="">
+                    <div className="flex items-center gap-1">
                       <span className="text-sm font-medium">{followingUser.full_name || followingUser.username}</span>
                       {followingUser.has_notifications && (
                         <Badge variant="default" className="h-1.5 w-1.5 rounded-full p-0 bg-red-500" />
                       )}
                     </div>
-                    <span className="text-xs text-muted-foreground">@{followingUser.username}</span>
+                    <div className="mt-[-10px]">
+                      <span className="text-xs text-muted-foreground text-[0.55rem]">@{followingUser.username}</span>
+                    </div>
                   </div>
-                </div>
+                </Link>
                 <div className="flex items-center gap-1 opacity-0 group-hover/user:opacity-100 transition-opacity">
                   <Button 
                     variant="ghost" 
@@ -156,7 +159,7 @@ export function NavDocuments() {
         )}
         
         {user && followingUsers.length > 0 && (
-          <SidebarMenuButton asChild className="text-primary text-sm mt-2">
+          <SidebarMenuButton asChild className="text-primary text-xs">
             <a href="/following">View all following</a>
           </SidebarMenuButton>
         )}

@@ -1,7 +1,4 @@
 import { useState, useEffect } from "react"
-import { AppSidebar } from "@/components/dashboard/layout/app-sidebar"
-import { SidebarInset, SidebarProvider } from "@/components/@/ui/sidebar"
-import { SiteHeader } from "@/components/dashboard/layout/site-header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/@/ui/tabs"
@@ -151,15 +148,15 @@ export default function Dashboard() {
 
   const fetchMetrics = async () => {
     try {
-      // Fetch revenue data from sales
-      const { data: salesData, error: salesError } = await supabase
-        .from('sales')
-        .select('price, quantity')
-        .eq('order_id', user?.id)
-      
-      if (salesError) throw salesError
-      
-      const totalRevenue = salesData?.reduce((sum, item) => sum + (item.price * item.quantity || 0), 0) || 0
+      // Fetch revenue data from orders
+      const { data: ordersData, error: ordersError } = await supabase
+        .from('orders')
+        .select('total')
+        .eq('user_id', user?.id)
+
+      if (ordersError) throw ordersError
+
+      const totalRevenue = ordersData?.reduce((sum, item) => sum + (item.total || 0), 0) || 0
       
       // Fetch active services
       const { data: servicesData, error: servicesError } = await supabase
@@ -235,20 +232,19 @@ export default function Dashboard() {
   const fetchAudioSales = async () => {
     try {
       const { data, error } = await supabase
-        .from('sales')
+        .from('files')
         .select(`
           id,
-          product_name,
+          name,
           price,
-          quantity,
-          sale_date,
           orders (
             customer_name,
-            customer_avatar
+            customer_avatar,
+            order_date
           )
         `)
         .eq('orders.user_id', user?.id)
-        .order('sale_date', { ascending: false })
+        .order('order_date', { ascending: false, foreignTable: 'orders' })
         .limit(5)
 
       if (error) throw error
@@ -256,15 +252,15 @@ export default function Dashboard() {
       const sales = data?.map((sale: any) => ({
         id: sale.id,
         track: {
-          title: sale.product_name,
+          title: sale.name,
         },
         buyer: {
           name: sale.orders.customer_name || 'Anonymous',
           avatar: sale.orders.customer_avatar,
         },
-        amount: sale.price * sale.quantity,
-        license: 'Standard', // This might need to be stored in the sales table
-        date: new Date(sale.sale_date).toISOString().split('T')[0],
+        amount: sale.price, // Assuming quantity is 1 for a file sale
+        license: 'Standard',
+        date: new Date(sale.orders.order_date).toISOString().split('T')[0],
       })) || []
 
       setAudioSales(sales)
@@ -291,14 +287,14 @@ export default function Dashboard() {
       })) || []
 
       const { data: tracksData, error: tracksError } = await supabase
-        .from('sales')
-        .select('product_name, quantity')
-        .eq('order_id', user?.id)
+        .from('files')
+        .select('name, orders!inner(id)')
+        .eq('orders.user_id', user?.id)
 
       if (tracksError) throw tracksError
 
       const trackSales = tracksData?.reduce((acc, track) => {
-        acc[track.product_name] = (acc[track.product_name] || 0) + track.quantity
+        acc[track.name] = (acc[track.name] || 0) + 1 // Counting sales
         return acc
       }, {} as Record<string, number>)
 
@@ -383,444 +379,438 @@ export default function Dashboard() {
   }
 
   return (
-    <SidebarProvider>
-      <AppSidebar variant="inset" />
-      <SidebarInset>
-        <SiteHeader />
-        <div className="flex flex-1 flex-col">
-          <div className="@container/main flex flex-1 flex-col gap-4 animate-fade-in p-6">
-            {/* Header with Time Range Selector */}
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold">Dashboard</h1>
-                <p className="text-muted-foreground">Welcome back! Here's an overview of your activity</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Select value={timeRange} onValueChange={(value: '7d' | '30d' | '90d') => setTimeRange(value)}>
-                  <SelectTrigger className="w-[180px]">
-                    <Calendar className="h-4 w-4 mr-2" />
-                    <SelectValue placeholder="Select time range" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="7d">Last 7 days</SelectItem>
-                    <SelectItem value="30d">Last 30 days</SelectItem>
-                    <SelectItem value="90d">Last 90 days</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* Key Metrics Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
-              {/* Revenue */}
-              <Card className="col-span-2">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-                  <DollarSign className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  {isLoading ? (
-                    <div className="h-9 flex items-center">
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      <span className="text-muted-foreground">Loading...</span>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="text-2xl font-bold">${metrics.totalRevenue.toLocaleString()}</div>
-                      <p className="text-xs text-muted-foreground flex items-center">
-                        {metrics.revenueChange >= 0 ? (
-                          <TrendingUp className="mr-1 h-3 w-3 text-green-500" />
-                        ) : (
-                          <TrendingDown className="mr-1 h-3 w-3 text-red-500" />
-                        )}
-                        {metrics.revenueChange >= 0 ? '+' : ''}{metrics.revenueChange.toFixed(1)}% from last period
-                      </p>
-                    </>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Plays */}
-              <Card className="col-span-2">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Plays</CardTitle>
-                  <PlayCircle className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  {isLoading ? (
-                    <div className="h-9 flex items-center">
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      <span className="text-muted-foreground">Loading...</span>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="text-2xl font-bold">{formatNumber(metrics.totalPlays)}</div>
-                      <p className="text-xs text-muted-foreground flex items-center">
-                        {metrics.playsChange >= 0 ? (
-                          <TrendingUp className="mr-1 h-3 w-3 text-green-500" />
-                        ) : (
-                          <TrendingDown className="mr-1 h-3 w-3 text-red-500" />
-                        )}
-                        {metrics.playsChange >= 0 ? '+' : ''}{metrics.playsChange.toFixed(1)}% from last period
-                      </p>
-                    </>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Active Services */}
-              <Card className="col-span-2">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Active Services</CardTitle>
-                  <Briefcase className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  {isLoading ? (
-                    <div className="h-9 flex items-center">
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      <span className="text-muted-foreground">Loading...</span>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="text-2xl font-bold">{metrics.activeServices}</div>
-                      <p className="text-xs text-muted-foreground flex items-center">
-                        {metrics.servicesChange >= 0 ? (
-                          <TrendingUp className="mr-1 h-3 w-3 text-green-500" />
-                        ) : (
-                          <TrendingDown className="mr-1 h-3 w-3 text-red-500" />
-                        )}
-                        {metrics.servicesChange >= 0 ? '+' : ''}{Math.abs(metrics.servicesChange).toFixed(1)}% from last period
-                      </p>
-                    </>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Active Clients */}
-              <Card className="col-span-2">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Active Clients</CardTitle>
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  {isLoading ? (
-                    <div className="h-9 flex items-center">
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      <span className="text-muted-foreground">Loading...</span>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="text-2xl font-bold">{metrics.activeClients}</div>
-                      <p className="text-xs text-muted-foreground flex items-center">
-                        {metrics.clientsChange >= 0 ? (
-                          <TrendingUp className="mr-1 h-3 w-3 text-green-500" />
-                        ) : (
-                          <TrendingDown className="mr-1 h-3 w-3 text-red-500" />
-                        )}
-                        {metrics.clientsChange >= 0 ? '+' : ''}{Math.abs(metrics.clientsChange).toFixed(1)}% from last period
-                      </p>
-                    </>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Additional Metrics - Row 2 */}
-              {/* Total Tracks */}
-              <Card className="col-span-2 md:col-span-1">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-xs font-medium">Tracks</CardTitle>
-                  <Music className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-xl font-bold">{metrics.totalTracks}</div>
-                </CardContent>
-              </Card>
-
-              {/* Followers */}
-              <Card className="col-span-2 md:col-span-1">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-xs font-medium">Followers</CardTitle>
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-xl font-bold">{formatNumber(metrics.totalFollowers)}</div>
-                </CardContent>
-              </Card>
-
-              {/* Gems */}
-              <Card className="col-span-2 md:col-span-1">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-xs font-medium">Gems</CardTitle>
-                  <Gem className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-xl font-bold">{formatNumber(metrics.totalGems)}</div>
-                </CardContent>
-              </Card>
-
-              {/* Likes */}
-              <Card className="col-span-2 md:col-span-1">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-xs font-medium">Likes</CardTitle>
-                  <Heart className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-xl font-bold">{formatNumber(metrics.totalLikes)}</div>
-                </CardContent>
-              </Card>
-
-              {/* Shares */}
-              <Card className="col-span-2 md:col-span-1">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-xs font-medium">Shares</CardTitle>
-                  <Share2 className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-xl font-bold">{formatNumber(metrics.totalShares)}</div>
-                </CardContent>
-              </Card>
-
-              {/* Conversion Rate */}
-              <Card className="col-span-2 md:col-span-1">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-xs font-medium">Conversion</CardTitle>
-                  <BarChart3 className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-xl font-bold">{metrics.conversionRate.toFixed(1)}%</div>
-                </CardContent>
-              </Card>
-
-              {/* Avg Session */}
-              <Card className="col-span-2 md:col-span-1">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-xs font-medium">Avg Session</CardTitle>
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-xl font-bold">{Math.floor(metrics.avgSessionDuration / 60)}m {metrics.avgSessionDuration % 60}s</div>
-                </CardContent>
-              </Card>
-
-              {/* Top Performers */}
-              <Card className="col-span-4">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Top Services</CardTitle>
-                </CardHeader>
-                <CardContent className="pb-2">
-                  <div className="space-y-2">
-                    {topPerformers.services.map((service, index) => (
-                      <div key={index} className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className={`w-2 h-2 rounded-full ${
-                            index === 0 ? 'bg-green-500' : 
-                            index === 1 ? 'bg-blue-500' : 
-                            index === 2 ? 'bg-purple-500' : 'bg-orange-500'
-                          }`} />
-                          <span className="text-sm truncate max-w-[150px]">{service.name}</span>
-                        </div>
-                        <span className="text-sm font-medium">${service.revenue}</span>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="col-span-4">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Top Tracks</CardTitle>
-                </CardHeader>
-                <CardContent className="pb-2">
-                  <div className="space-y-2">
-                    {topPerformers.tracks.map((track, index) => (
-                      <div key={index} className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className={`w-2 h-2 rounded-full ${
-                            index === 0 ? 'bg-green-500' : 
-                            index === 1 ? 'bg-blue-500' : 
-                            index === 2 ? 'bg-purple-500' : 'bg-orange-500'
-                          }`} />
-                          <span className="text-sm truncate max-w-[150px]">{track.title}</span>
-                        </div>
-                        <span className="text-sm font-medium">{track.sales} sales</span>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Tabs for Services and Audio Sales */}
-            <div className="mt-4">
-              <Tabs defaultValue="services">
-                <TabsList>
-                  <TabsTrigger value="services" className="flex items-center gap-2">
-                    <Briefcase className="h-4 w-4" />
-                    Service Orders
-                  </TabsTrigger>
-                  <TabsTrigger value="audio" className="flex items-center gap-2">
-                    <Headphones className="h-4 w-4" />
-                    Audio Sales
-                  </TabsTrigger>
-                </TabsList>
-                
-                {/* Services Tab */}
-                <TabsContent value="services" className="mt-4">
-                  <Card>
-                    <CardHeader className="flex flex-row items-center justify-between">
-                      <div>
-                        <CardTitle>Recent Service Orders</CardTitle>
-                        <CardDescription>Manage your incoming service requests</CardDescription>
-                      </div>
-                      <Button variant="outline" size="sm" className="gap-2">
-                        <Filter className="h-4 w-4" />
-                        Filter
-                      </Button>
-                    </CardHeader>
-                    <CardContent>
-                      {isLoading ? (
-                        <div className="h-[200px] flex items-center justify-center">
-                          <Loader2 className="h-8 w-8 animate-spin" />
-                        </div>
-                      ) : (
-                        <div className="rounded-md border">
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead>Client</TableHead>
-                                <TableHead>Service</TableHead>
-                                <TableHead>Price</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead>Date</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {serviceOrders.map((order) => (
-                                <TableRow key={order.id}>
-                                  <TableCell>
-                                    <div className="flex items-center gap-2">
-                                      <Avatar className="h-8 w-8">
-                                        <AvatarImage src={order.client.avatar} />
-                                        <AvatarFallback>{order.client.name[0]}</AvatarFallback>
-                                      </Avatar>
-                                      <span className="font-medium">{order.client.name}</span>
-                                    </div>
-                                  </TableCell>
-                                  <TableCell>{order.service}</TableCell>
-                                  <TableCell>${order.price.toFixed(2)}</TableCell>
-                                  <TableCell>{getStatusBadge(order.status)}</TableCell>
-                                  <TableCell>{new Date(order.date).toLocaleDateString()}</TableCell>
-                                  <TableCell className="text-right">
-                                    <Button variant="ghost" size="sm">View</Button>
-                                  </TableCell>
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        </div>
-                      )}
-                    </CardContent>
-                    <CardFooter className="flex justify-between">
-                      <div className="text-sm text-muted-foreground">
-                        Showing {serviceOrders.length} of {serviceOrders.length} orders
-                      </div>
-                      <Button variant="outline" size="sm" className="gap-2">
-                        <ArrowUpRight className="h-4 w-4" />
-                        View All
-                      </Button>
-                    </CardFooter>
-                  </Card>
-                </TabsContent>
-                
-                {/* Audio Sales Tab */}
-                <TabsContent value="audio" className="mt-4">
-                  <Card>
-                    <CardHeader className="flex flex-row items-center justify-between">
-                      <div>
-                        <CardTitle>Recent Audio Sales</CardTitle>
-                        <CardDescription>Track your music and audio sales</CardDescription>
-                      </div>
-                      <Button variant="outline" size="sm" className="gap-2">
-                        <Filter className="h-4 w-4" />
-                        Filter
-                      </Button>
-                    </CardHeader>
-                    <CardContent>
-                      {isLoading ? (
-                        <div className="h-[200px] flex items-center justify-center">
-                          <Loader2 className="h-8 w-8 animate-spin" />
-                        </div>
-                      ) : (
-                        <div className="rounded-md border">
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead>Track</TableHead>
-                                <TableHead>Buyer</TableHead>
-                                <TableHead>Amount</TableHead>
-                                <TableHead>License</TableHead>
-                                <TableHead>Date</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {audioSales.map((sale) => (
-                                <TableRow key={sale.id}>
-                                  <TableCell>
-                                    <div className="flex items-center gap-2">
-                                      <div className="h-8 w-8 rounded-md bg-muted overflow-hidden">
-                                        {sale.track.artwork && (
-                                          <img 
-                                            src={sale.track.artwork} 
-                                            alt={sale.track.title}
-                                            className="h-full w-full object-cover"
-                                          />
-                                        )}
-                                      </div>
-                                      <span className="font-medium">{sale.track.title}</span>
-                                    </div>
-                                  </TableCell>
-                                  <TableCell>
-                                    <div className="flex items-center gap-2">
-                                      <Avatar className="h-8 w-8">
-                                        <AvatarImage src={sale.buyer.avatar} />
-                                        <AvatarFallback>{sale.buyer.name[0]}</AvatarFallback>
-                                      </Avatar>
-                                      <span>{sale.buyer.name}</span>
-                                    </div>
-                                  </TableCell>
-                                  <TableCell>${sale.amount.toFixed(2)}</TableCell>
-                                  <TableCell>
-                                    <Badge variant="outline">{sale.license}</Badge>
-                                  </TableCell>
-                                  <TableCell>{new Date(sale.date).toLocaleDateString()}</TableCell>
-                                  <TableCell className="text-right">
-                                    <Button variant="ghost" size="sm">View</Button>
-                                  </TableCell>
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        </div>
-                      )}
-                    </CardContent>
-                    <CardFooter className="flex justify-between">
-                      <div className="text-sm text-muted-foreground">
-                        Showing {audioSales.length} of {audioSales.length} sales
-                      </div>
-                      <Button variant="outline" size="sm" className="gap-2">
-                        <ArrowUpRight className="h-4 w-4" />
-                        View All
-                      </Button>
-                    </CardFooter>
-                  </Card>
-                </TabsContent>
-              </Tabs>
-            </div>
+    <div className="flex flex-1 flex-col">
+      <div className="@container/main flex flex-1 flex-col gap-4 animate-fade-in p-6">
+        {/* Header with Time Range Selector */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">Dashboard</h1>
+            <p className="text-muted-foreground">Welcome back! Here's an overview of your activity</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Select value={timeRange} onValueChange={(value: '7d' | '30d' | '90d') => setTimeRange(value)}>
+              <SelectTrigger className="w-[180px]">
+                <Calendar className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Select time range" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="7d">Last 7 days</SelectItem>
+                <SelectItem value="30d">Last 30 days</SelectItem>
+                <SelectItem value="90d">Last 90 days</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
-      </SidebarInset>
-    </SidebarProvider>
+
+        {/* Key Metrics Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
+          {/* Revenue */}
+          <Card className="col-span-2">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="h-9 flex items-center">
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  <span className="text-muted-foreground">Loading...</span>
+                </div>
+              ) : (
+                <>
+                  <div className="text-2xl font-bold">${metrics.totalRevenue.toLocaleString()}</div>
+                  <p className="text-xs text-muted-foreground flex items-center">
+                    {metrics.revenueChange >= 0 ? (
+                      <TrendingUp className="mr-1 h-3 w-3 text-green-500" />
+                    ) : (
+                      <TrendingDown className="mr-1 h-3 w-3 text-red-500" />
+                    )}
+                    {metrics.revenueChange >= 0 ? '+' : ''}{metrics.revenueChange.toFixed(1)}% from last period
+                  </p>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Plays */}
+          <Card className="col-span-2">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Plays</CardTitle>
+              <PlayCircle className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="h-9 flex items-center">
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  <span className="text-muted-foreground">Loading...</span>
+                </div>
+              ) : (
+                <>
+                  <div className="text-2xl font-bold">{formatNumber(metrics.totalPlays)}</div>
+                  <p className="text-xs text-muted-foreground flex items-center">
+                    {metrics.playsChange >= 0 ? (
+                      <TrendingUp className="mr-1 h-3 w-3 text-green-500" />
+                    ) : (
+                      <TrendingDown className="mr-1 h-3 w-3 text-red-500" />
+                    )}
+                    {metrics.playsChange >= 0 ? '+' : ''}{metrics.playsChange.toFixed(1)}% from last period
+                  </p>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Active Services */}
+          <Card className="col-span-2">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Active Services</CardTitle>
+              <Briefcase className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="h-9 flex items-center">
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  <span className="text-muted-foreground">Loading...</span>
+                </div>
+              ) : (
+                <>
+                  <div className="text-2xl font-bold">{metrics.activeServices}</div>
+                  <p className="text-xs text-muted-foreground flex items-center">
+                    {metrics.servicesChange >= 0 ? (
+                      <TrendingUp className="mr-1 h-3 w-3 text-green-500" />
+                    ) : (
+                      <TrendingDown className="mr-1 h-3 w-3 text-red-500" />
+                    )}
+                    {metrics.servicesChange >= 0 ? '+' : ''}{Math.abs(metrics.servicesChange).toFixed(1)}% from last period
+                  </p>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Active Clients */}
+          <Card className="col-span-2">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Active Clients</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="h-9 flex items-center">
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  <span className="text-muted-foreground">Loading...</span>
+                </div>
+              ) : (
+                <>
+                  <div className="text-2xl font-bold">{metrics.activeClients}</div>
+                  <p className="text-xs text-muted-foreground flex items-center">
+                    {metrics.clientsChange >= 0 ? (
+                      <TrendingUp className="mr-1 h-3 w-3 text-green-500" />
+                    ) : (
+                      <TrendingDown className="mr-1 h-3 w-3 text-red-500" />
+                    )}
+                    {metrics.clientsChange >= 0 ? '+' : ''}{Math.abs(metrics.clientsChange).toFixed(1)}% from last period
+                  </p>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Additional Metrics - Row 2 */}
+          {/* Total Tracks */}
+          <Card className="col-span-2 md:col-span-1">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-xs font-medium">Tracks</CardTitle>
+              <Music className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-xl font-bold">{metrics.totalTracks}</div>
+            </CardContent>
+          </Card>
+
+          {/* Followers */}
+          <Card className="col-span-2 md:col-span-1">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-xs font-medium">Followers</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-xl font-bold">{formatNumber(metrics.totalFollowers)}</div>
+            </CardContent>
+          </Card>
+
+          {/* Gems */}
+          <Card className="col-span-2 md:col-span-1">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-xs font-medium">Gems</CardTitle>
+              <Gem className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-xl font-bold">{formatNumber(metrics.totalGems)}</div>
+            </CardContent>
+          </Card>
+
+          {/* Likes */}
+          <Card className="col-span-2 md:col-span-1">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-xs font-medium">Likes</CardTitle>
+              <Heart className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-xl font-bold">{formatNumber(metrics.totalLikes)}</div>
+            </CardContent>
+          </Card>
+
+          {/* Shares */}
+          <Card className="col-span-2 md:col-span-1">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-xs font-medium">Shares</CardTitle>
+              <Share2 className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-xl font-bold">{formatNumber(metrics.totalShares)}</div>
+            </CardContent>
+          </Card>
+
+          {/* Conversion Rate */}
+          <Card className="col-span-2 md:col-span-1">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-xs font-medium">Conversion</CardTitle>
+              <BarChart3 className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-xl font-bold">{metrics.conversionRate.toFixed(1)}%</div>
+            </CardContent>
+          </Card>
+
+          {/* Avg Session */}
+          <Card className="col-span-2 md:col-span-1">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-xs font-medium">Avg Session</CardTitle>
+              <Clock className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-xl font-bold">{Math.floor(metrics.avgSessionDuration / 60)}m {metrics.avgSessionDuration % 60}s</div>
+            </CardContent>
+          </Card>
+
+          {/* Top Performers */}
+          <Card className="col-span-4">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Top Services</CardTitle>
+            </CardHeader>
+            <CardContent className="pb-2">
+              <div className="space-y-2">
+                {topPerformers.services.map((service, index) => (
+                  <div key={index} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${
+                        index === 0 ? 'bg-green-500' : 
+                        index === 1 ? 'bg-blue-500' : 
+                        index === 2 ? 'bg-purple-500' : 'bg-orange-500'
+                      }`} />
+                      <span className="text-sm truncate max-w-[150px]">{service.name}</span>
+                    </div>
+                    <span className="text-sm font-medium">${service.revenue}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="col-span-4">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Top Tracks</CardTitle>
+            </CardHeader>
+            <CardContent className="pb-2">
+              <div className="space-y-2">
+                {topPerformers.tracks.map((track, index) => (
+                  <div key={index} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${
+                        index === 0 ? 'bg-green-500' : 
+                        index === 1 ? 'bg-blue-500' : 
+                        index === 2 ? 'bg-purple-500' : 'bg-orange-500'
+                      }`} />
+                      <span className="text-sm truncate max-w-[150px]">{track.title}</span>
+                    </div>
+                    <span className="text-sm font-medium">{track.sales} sales</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Tabs for Services and Audio Sales */}
+        <div className="mt-4">
+          <Tabs defaultValue="services">
+            <TabsList>
+              <TabsTrigger value="services" className="flex items-center gap-2">
+                <Briefcase className="h-4 w-4" />
+                Service Orders
+              </TabsTrigger>
+              <TabsTrigger value="audio" className="flex items-center gap-2">
+                <Headphones className="h-4 w-4" />
+                Audio Sales
+              </TabsTrigger>
+            </TabsList>
+            
+            {/* Services Tab */}
+            <TabsContent value="services" className="mt-4">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle>Recent Service Orders</CardTitle>
+                    <CardDescription>Manage your incoming service requests</CardDescription>
+                  </div>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Filter className="h-4 w-4" />
+                    Filter
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  {isLoading ? (
+                    <div className="h-[200px] flex items-center justify-center">
+                      <Loader2 className="h-8 w-8 animate-spin" />
+                    </div>
+                  ) : (
+                    <div className="rounded-md border">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Client</TableHead>
+                            <TableHead>Service</TableHead>
+                            <TableHead>Price</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Date</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {serviceOrders.map((order) => (
+                            <TableRow key={order.id}>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <Avatar className="h-8 w-8">
+                                    <AvatarImage src={order.client.avatar} />
+                                    <AvatarFallback>{order.client.name[0]}</AvatarFallback>
+                                  </Avatar>
+                                  <span className="font-medium">{order.client.name}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell>{order.service}</TableCell>
+                              <TableCell>${order.price.toFixed(2)}</TableCell>
+                              <TableCell>{getStatusBadge(order.status)}</TableCell>
+                              <TableCell>{new Date(order.date).toLocaleDateString()}</TableCell>
+                              <TableCell className="text-right">
+                                <Button variant="ghost" size="sm">View</Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </CardContent>
+                <CardFooter className="flex justify-between">
+                  <div className="text-sm text-muted-foreground">
+                    Showing {serviceOrders.length} of {serviceOrders.length} orders
+                  </div>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <ArrowUpRight className="h-4 w-4" />
+                    View All
+                  </Button>
+                </CardFooter>
+              </Card>
+            </TabsContent>
+            
+            {/* Audio Sales Tab */}
+            <TabsContent value="audio" className="mt-4">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle>Recent Audio Sales</CardTitle>
+                    <CardDescription>Track your music and audio sales</CardDescription>
+                  </div>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Filter className="h-4 w-4" />
+                    Filter
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  {isLoading ? (
+                    <div className="h-[200px] flex items-center justify-center">
+                      <Loader2 className="h-8 w-8 animate-spin" />
+                    </div>
+                  ) : (
+                    <div className="rounded-md border">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Track</TableHead>
+                            <TableHead>Buyer</TableHead>
+                            <TableHead>Amount</TableHead>
+                            <TableHead>License</TableHead>
+                            <TableHead>Date</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {audioSales.map((sale) => (
+                            <TableRow key={sale.id}>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <div className="h-8 w-8 rounded-md bg-muted overflow-hidden">
+                                    {sale.track.artwork && (
+                                      <img 
+                                        src={sale.track.artwork} 
+                                        alt={sale.track.title}
+                                        className="h-full w-full object-cover"
+                                      />
+                                    )}
+                                  </div>
+                                  <span className="font-medium">{sale.track.title}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <Avatar className="h-8 w-8">
+                                    <AvatarImage src={sale.buyer.avatar} />
+                                    <AvatarFallback>{sale.buyer.name[0]}</AvatarFallback>
+                                  </Avatar>
+                                  <span>{sale.buyer.name}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell>${sale.amount.toFixed(2)}</TableCell>
+                              <TableCell>
+                                <Badge variant="outline">{sale.license}</Badge>
+                              </TableCell>
+                              <TableCell>{new Date(sale.date).toLocaleDateString()}</TableCell>
+                              <TableCell className="text-right">
+                                <Button variant="ghost" size="sm">View</Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </CardContent>
+                <CardFooter className="flex justify-between">
+                  <div className="text-sm text-muted-foreground">
+                    Showing {audioSales.length} of {audioSales.length} sales
+                  </div>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <ArrowUpRight className="h-4 w-4" />
+                    View All
+                  </Button>
+                </CardFooter>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </div>
+      </div>
+    </div>
   )
 }

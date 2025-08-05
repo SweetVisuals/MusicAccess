@@ -100,7 +100,7 @@ export function NavUser() {
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button size="lg\" variant="outline\" className="gap-2">
+          <Button size="lg" variant="outline" className="gap-2">
             <LogInIcon className="h-4 w-4" />
             <span>Login / Signup</span>
           </Button>
@@ -191,7 +191,7 @@ export function NavUser() {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem onClick={() => navigate('/user/user-profile')}>
+              <DropdownMenuItem onClick={() => navigate(`/user/${profile.username}`)}>
                 <UserCircleIcon className="mr-2 h-4 w-4" />
                 Account
               </DropdownMenuItem>

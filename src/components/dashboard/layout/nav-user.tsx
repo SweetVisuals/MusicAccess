@@ -1,13 +1,14 @@
-import { useState, useEffect } from "react"
+import { useEffect } from "react"
 import { LogInIcon, UserPlusIcon } from "lucide-react"
-import { supabase } from "@/lib/supabase"
 import {
   BellIcon,
   CreditCardIcon,
   LogOutIcon,
   MoreVerticalIcon,
   UserCircleIcon,
+  SettingsIcon,
 } from "lucide-react"
+import { Link, useNavigate } from "react-router-dom"
 
 import { Button } from "@/components/@/ui/button"
 import {
@@ -30,51 +31,22 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/@/ui/sidebar"
-
 import { useAuth } from "@/contexts/auth-context"
+import { Progress } from "@/components/@/ui/progress"
+import useUserData from "@/hooks/useUserData"
 
 export function NavUser() {
   const { isMobile } = useSidebar()
-  const { user: authUser, isLoading: isAuthLoading } = useAuth()
-  const [profile, setProfile] = useState<{
-    username: string | null
-    email: string | null
-    profile_url: string | null
-  } | null>(null)
-  const [isProfileLoading, setIsProfileLoading] = useState(true)
+  const { user: authUser, isLoading: isAuthLoading, signOut } = useAuth()
+  const navigate = useNavigate()
+  const {
+    storageUsed,
+    storageLimit,
+    loadingStorage,
+    profile,
+  } = useUserData()
 
-  useEffect(() => {
-    if (!authUser) {
-      setProfile(null)
-      setIsProfileLoading(false)
-      return
-    }
-
-    const fetchProfile = async () => {
-      setIsProfileLoading(true)
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('username, email, profile_url')
-          .eq('id', authUser.id)
-          .single()
-
-        if (error) throw error
-        setProfile(data)
-      } catch (error) {
-        console.error('Error fetching profile:', error)
-        setProfile(null)
-      } finally {
-        setIsProfileLoading(false)
-      }
-    }
-
-    fetchProfile()
-  }, [authUser])
-
-  if (isAuthLoading || isProfileLoading) return null
-
-  if (!authUser || !profile) {
+  if (isAuthLoading || !authUser || !profile) {
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -90,24 +62,53 @@ export function NavUser() {
           sideOffset={4}
         >
           <DropdownMenuItem asChild>
-            <a href="/auth/login" className="w-full">
+            <Link to="/auth/login" className="w-full">
               <LogInIcon className="mr-2 h-4 w-4" />
               <span>Login</span>
-            </a>
+            </Link>
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
-            <a href="/auth/signup" className="w-full">
+            <Link to="/auth/signup" className="w-full">
               <UserPlusIcon className="mr-2 h-4 w-4" />
               <span>Sign Up</span>
-            </a>
+            </Link>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     )
   }
 
+  // Calculate storage percentage
+  const storagePercentage = Math.min(Math.round((storageUsed / storageLimit) * 100), 100)
+  
+  // Format storage display
+  const formatStorage = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+  };
+
   return (
     <SidebarMenu>
+      {/* Storage Progress Bar */}
+      {authUser && !loadingStorage && ( // Only show if authUser exists and not loading storage
+        <div className="px-4 py-3">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs font-medium text-sidebar-foreground/70">
+              Storage
+            </span>
+            <span className="text-xs font-medium text-sidebar-foreground/70">
+              {formatStorage(storageUsed)} / {formatStorage(storageLimit)}
+            </span>
+          </div>
+          <Progress 
+            value={storagePercentage} 
+            className="h-2 bg-sidebar-accent [&>div]:bg-sidebar-primary"
+          />
+        </div>
+      )}
+
       <SidebarMenuItem>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -158,22 +159,26 @@ export function NavUser() {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem>
-                <UserCircleIcon />
+              <DropdownMenuItem onClick={() => navigate('/user/user-profile')}>
+                <UserCircleIcon className="mr-2 h-4 w-4" />
                 Account
               </DropdownMenuItem>
-              <DropdownMenuItem>
-                <CreditCardIcon />
+              <DropdownMenuItem onClick={() => navigate('/dashboard/billing')}>
+                <CreditCardIcon className="mr-2 h-4 w-4" />
                 Billing
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate('/dashboard/settings')}>
+                <SettingsIcon className="mr-2 h-4 w-4" />
+                Settings
+              </DropdownMenuItem>
               <DropdownMenuItem>
-                <BellIcon />
+                <BellIcon className="mr-2 h-4 w-4" />
                 Notifications
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              <LogOutIcon />
+            <DropdownMenuItem onClick={() => signOut()}>
+              <LogOutIcon className="mr-2 h-4 w-4" />
               Log out
             </DropdownMenuItem>
           </DropdownMenuContent>

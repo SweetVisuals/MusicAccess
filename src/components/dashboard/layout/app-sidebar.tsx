@@ -23,7 +23,8 @@ import {
 
 import { NavMain } from "@/components/dashboard/layout/nav-main"
 import { NavSecondary } from "@/components/dashboard/layout/nav-secondary"
-import { NavUser } from "@/components/dashboard/nav-user"
+import { NavUser } from "@/components/dashboard/layout/nav-user"
+import { NavDocuments } from "@/components/homepage/nav-documents"
 import { Progress } from "@/components/@/ui/progress"
 import {
   Sidebar,
@@ -40,7 +41,7 @@ import { supabase } from "@/lib/supabase"
 const data = {
   navMain: [
     {
-      title: "Overview",
+      title: "Dashboard",
       url: "/user/dashboard",
       icon: LayoutDashboardIcon,
     },
@@ -53,6 +54,11 @@ const data = {
       title: "Post A Service",
       url: "/dashboard/services",
       icon: DatabaseIcon,
+    },
+    {
+      title: "Upload",
+      url: "/upload",
+      icon: ArrowUpCircleIcon,
     },
     {
       title: "Contracts",
@@ -87,50 +93,37 @@ const data = {
       icon: SearchIcon,
     },
   ],
-  documents: [
-    {
-      name: "Data Library",
-      url: "#",
-      icon: DatabaseIcon,
-    },
-    {
-      name: "Reports",
-      url: "#",
-      icon: ClipboardListIcon,
-    },
-    {
-      name: "Word Assistant",
-      url: "#",
-      icon: FileIcon,
-    },
-  ],
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { user, storageUsed, totalStorage } = useAuth();
+  const { user, storageUsed, totalStorage } = useAuth()
 
   const formatStorage = (bytes: number) => {
-    if (bytes === 0) return "0 B";
-    const k = 1024;
-    const sizes = ["B", "KB", "MB", "GB", "TB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-  };
+    if (bytes === 0) return "0 B"
+    const k = 1024
+    const sizes = ["B", "KB", "MB", "GB", "TB"]
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
+  }
 
-  const storagePercentage = totalStorage > 0 ? (storageUsed / totalStorage) * 100 : 0;
+  const storagePercentage =
+    totalStorage > 0 ? (storageUsed / totalStorage) * 100 : 0
 
   return (
-    <Sidebar collapsible="offcanvas" {...props}>
+    <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
               asChild
               className="data-[slot=sidebar-menu-button]:!p-1.5"
+              tooltip="Music Access Studio"
             >
               <a href="#">
                 <ArrowUpCircleIcon className="h-5 w-5" />
-                <span className="text-base font-semibold">Music Access.</span>
+                <span className="text-base font-semibold !text-white">
+                  Music Access Studio
+                </span>
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -138,29 +131,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
-        <NavSecondary items={data.navSecondary} className="mt-auto" />
-        
-        {/* Storage Progress Bar */}
         {user && (
-          <div className="px-4 py-3">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-medium text-sidebar-foreground/70">
-                Storage
-              </span>
-              <span className="text-xs font-medium text-sidebar-foreground/70">
-                {formatStorage(storageUsed)} / {formatStorage(totalStorage)}
-              </span>
-            </div>
-            <Progress 
-              value={storagePercentage} 
-              className="h-2 bg-sidebar-accent [&>div]:bg-sidebar-primary"
-            />
-          </div>
+          <>
+            <NavDocuments />
+            <NavSecondary items={data.navSecondary} className="mt-auto" />
+          </>
         )}
       </SidebarContent>
       <SidebarFooter>
         <NavUser />
       </SidebarFooter>
     </Sidebar>
-  );
+  )
 }

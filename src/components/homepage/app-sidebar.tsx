@@ -103,22 +103,25 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   if (isLoading) return null
 
-  const filteredNavMain = user 
-    ? data.navMain 
+  const filteredNavMain = user
+    ? data.navMain
     : data.navMain.filter(item => item.title === "Discover")
 
   return (
-    <Sidebar collapsible="offcanvas" {...props}>
+    <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
               asChild
               className="data-[slot=sidebar-menu-button]:!p-1.5"
+              tooltip="Music Access Studio"
             >
-              <a href="/">
+              <a href="#">
                 <ArrowUpCircleIcon className="h-5 w-5" />
-                <span className="text-base font-semibold">Music Access.</span>
+                <span className="text-base font-semibold !text-white">
+                  Music Access Studio
+                </span>
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>

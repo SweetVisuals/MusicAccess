@@ -22,10 +22,17 @@ const useProfile = create<ProfileStore>((set) => ({
     set({ loading: true, error: null });
     try {
       const { data, error } = await supabase
-        .rpc('get_profile_with_stats', { profile_id: userId })
+        .rpc('get_profile_with_stats', { p_user_id: userId })
         .single<ProfileWithStatsResponse>();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching profile:', error);
+        throw error;
+      }
+
+      if (!data || !data.profile) {
+        throw new Error('Profile not found');
+      }
 
       const profile = transformProfileFromDB(data.profile);
       const statsData = data.stats;
