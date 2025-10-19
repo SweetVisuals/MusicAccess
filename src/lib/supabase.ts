@@ -7,7 +7,8 @@ console.log('Environment check:', {
   supabaseUrl: supabaseUrl ? 'Present' : 'Missing',
   supabaseAnonKey: supabaseAnonKey ? 'Present' : 'Missing',
   urlValue: supabaseUrl,
-  keyLength: supabaseAnonKey?.length
+  keyLength: supabaseAnonKey?.length,
+  fullKey: supabaseAnonKey
 })
 
 if (!supabaseUrl || !supabaseAnonKey) {
