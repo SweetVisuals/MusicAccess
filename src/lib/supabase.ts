@@ -3,13 +3,10 @@ import { createClient } from "@supabase/supabase-js"
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-console.log('Environment check:', {
-  supabaseUrl: supabaseUrl ? 'Present' : 'Missing',
-  supabaseAnonKey: supabaseAnonKey ? 'Present' : 'Missing',
-  urlValue: supabaseUrl,
-  keyLength: supabaseAnonKey?.length,
-  fullKey: supabaseAnonKey
-})
+console.log('Raw environment variables:')
+console.log('VITE_SUPABASE_URL:', import.meta.env.VITE_SUPABASE_URL)
+console.log('VITE_SUPABASE_ANON_KEY:', import.meta.env.VITE_SUPABASE_ANON_KEY)
+console.log('All env vars starting with VITE:', Object.keys(import.meta.env).filter(key => key.startsWith('VITE_')))
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error("Missing Supabase environment variables")
