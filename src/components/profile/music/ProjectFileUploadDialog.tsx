@@ -2,7 +2,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/@
 import { useCallback, useState, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Button } from '@/components/@/ui/button';
-import { Upload, X, FileMusic, Music, File as FileIcon, Folder, ChevronRight, Download } from 'lucide-react';
+import { Upload, X, FileMusic, Music, File as FileIcon, Folder, ChevronRight, Download, Plus, Check, Trash2 } from 'lucide-react';
 import { Progress } from '@/components/@/ui/progress';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/@/ui/scroll-area';
@@ -14,6 +14,13 @@ import { Badge } from '@/components/@/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/@/ui/select';
 
 export interface ProjectFile {
   id: string;
@@ -55,6 +62,14 @@ export const ProjectFileUploadDialog = ({
   const [userFiles, setUserFiles] = useState<any[]>([]);
   const [currentFolder, setCurrentFolder] = useState<string | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<ProjectFile[]>([]);
+
+  // Track groups state
+  const [trackGroups, setTrackGroups] = useState<any[]>([]);
+  const [showCreateTrackGroup, setShowCreateTrackGroup] = useState(false);
+  const [newTrackName, setNewTrackName] = useState('');
+  const [trackGroupVariantTypes, setTrackGroupVariantTypes] = useState<Record<string, string>>({});
+  const [trackGroupPrices, setTrackGroupPrices] = useState<Record<string, string>>({});
+  const [trackGroupSelectedFiles, setTrackGroupSelectedFiles] = useState<string[]>([]);
 
   const fetchFolders = async () => {
     if (!user) return;
@@ -117,6 +132,11 @@ export const ProjectFileUploadDialog = ({
       setIsUploading(false);
       setCurrentFolder(null);
       setSelectedFiles([]);
+      setTrackGroups([]);
+      setNewTrackName('');
+      setTrackGroupVariantTypes({});
+      setTrackGroupPrices({});
+      setTrackGroupSelectedFiles([]);
     }
   }, [open]);
 
@@ -234,67 +254,169 @@ export const ProjectFileUploadDialog = ({
     setProgress({});
 
     try {
-      for (const file of filesToUpload) {
-        const isNewUpload = !file.file_url;
-        let fileId = isNewUpload ? uuidv4() : file.id;
-        let fileUrl = file.file_url;
-        
-        if (isNewUpload) {
-          const fileExt = file.name.split('.').pop();
-          const filePath = `${user.id}/${fileId}.${fileExt}`;
+      // If track groups are created, process them
+      if (trackGroups.length > 0) {
+        for (const trackGroup of trackGroups) {
+          const trackName = trackGroup.trackName;
+          const groupFiles = trackGroup.files;
+          const variantTypes = trackGroup.variantTypes;
+          const prices = trackGroup.prices;
+
+          for (let i = 0; i < groupFiles.length; i++) {
+            const file = groupFiles[i];
+            const variantType = variantTypes[i];
+            const price = prices[file.id];
+
+            const isNewUpload = !file.file_url;
+            let fileId = isNewUpload ? uuidv4() : file.id;
+            let fileUrl = file.file_url;
+
+            if (isNewUpload) {
+              const fileExt = file.name.split('.').pop();
+              const filePath = `${user.id}/${fileId}.${fileExt}`;
+
+              const { error: uploadError } = await supabase.storage
+                .from('audio_files')
+                .upload(filePath, file as unknown as File, {
+                  cacheControl: '3600',
+                  upsert: true,
+                  contentType: file.file_type === 'audio' ? 'audio/mpeg' : file.file_type,
+                });
+
+              if (uploadError) throw uploadError;
+
+              const { data: urlData } = supabase.storage.from('audio_files').getPublicUrl(filePath);
+              fileUrl = urlData.publicUrl;
+
+              const { error: dbError } = await supabase.from('files').insert({
+                id: fileId,
+                name: file.name,
+                file_url: urlData.publicUrl,
+                file_path: filePath,
+                size: file.size,
+                file_type: file.file_type,
+                user_id: user.id,
+                folder_id: currentFolder,
+              });
+
+              if (dbError) throw dbError;
+            }
+
+            const { error: metadataError } = await supabase
+              .from('project_files')
+              .insert({
+                project_id: projectId,
+                file_id: fileId,
+                price: price,
+              });
+
+            if (metadataError) throw metadataError;
+
+            // Create track if not exists
+            const { data: existingTrack } = await supabase
+              .from('audio_tracks')
+              .select('id')
+              .eq('project_id', projectId)
+              .eq('title', trackName)
+              .single();
+
+            let trackId = existingTrack?.id;
+
+            if (!trackId) {
+              const { data: newTrack, error: trackError } = await supabase
+                .from('audio_tracks')
+                .insert({
+                  project_id: projectId,
+                  title: trackName,
+                  audio_url: fileUrl,
+                  user_id: user.id,
+                })
+                .select('id')
+                .single();
+
+              if (trackError) throw trackError;
+              trackId = newTrack.id;
+            }
+
+            // Create track variant
+            const { error: variantError } = await supabase
+              .from('track_variants')
+              .insert({
+                track_id: trackId,
+                variant_type: variantType,
+                file_id: fileId,
+              });
+
+            if (variantError) {
+              console.error('Error creating track variant:', variantError);
+              toast.error(`Failed to create variant for ${file.name}`);
+            }
+          }
+        }
+      } else {
+        // Original logic for individual files
+        for (const file of filesToUpload) {
+          const isNewUpload = !file.file_url;
+          let fileId = isNewUpload ? uuidv4() : file.id;
+          let fileUrl = file.file_url;
           
-          const { error: uploadError } = await supabase.storage
-            .from('audio_files')
-            .upload(filePath, file as unknown as File, {
-              cacheControl: '3600',
-              upsert: true,
-              contentType: file.type,
+          if (isNewUpload) {
+            const fileExt = file.name.split('.').pop();
+            const filePath = `${user.id}/${fileId}.${fileExt}`;
+            
+            const { error: uploadError } = await supabase.storage
+              .from('audio_files')
+              .upload(filePath, file as unknown as File, {
+                cacheControl: '3600',
+                upsert: true,
+                contentType: file.type,
+              });
+
+            if (uploadError) throw uploadError;
+
+            const { data: urlData } = supabase.storage.from('audio_files').getPublicUrl(filePath);
+            fileUrl = urlData.publicUrl;
+            
+            const { error: dbError } = await supabase.from('files').insert({
+              id: fileId,
+              name: file.name,
+              file_url: urlData.publicUrl,
+              file_path: filePath,
+              size: file.size,
+              file_type: getFileType(file.type),
+              user_id: user.id,
+              folder_id: currentFolder,
             });
 
-          if (uploadError) throw uploadError;
+            if (dbError) throw dbError;
+          }
 
-          const { data: urlData } = supabase.storage.from('audio_files').getPublicUrl(filePath);
-          fileUrl = urlData.publicUrl;
-          
-          const { error: dbError } = await supabase.from('files').insert({
-            id: fileId,
-            name: file.name,
-            file_url: urlData.publicUrl,
-            file_path: filePath,
-            size: file.size,
-            file_type: getFileType(file.type),
-            user_id: user.id,
-            folder_id: currentFolder,
-          });
-
-          if (dbError) throw dbError;
-        }
-
-        const { error: metadataError } = await supabase
-          .from('project_files')
-          .insert({
-            project_id: projectId,
-            file_id: fileId,
-          });
-
-        if (metadataError) throw metadataError;
-
-        // If it's an audio file, also add it to the tracks table
-        if (file.file_type === 'audio') {
-          const metadata = fileMetadata[file.id] || { title: file.name, description: '', allow_download: false };
-          const { error: trackError } = await supabase
-            .from('tracks')
+          const { error: metadataError } = await supabase
+            .from('project_files')
             .insert({
               project_id: projectId,
-              title: metadata.title,
-              audio_url: fileUrl,
-              allow_download: metadata.allow_download,
-              user_id: user.id,
+              file_id: fileId,
             });
 
-          if (trackError) {
-            console.error('Error creating track:', trackError);
-            toast.error(`Failed to create track for ${metadata.title}`);
+          if (metadataError) throw metadataError;
+
+          // If it's an audio file, also add it to the audio_tracks table
+          if (file.file_type === 'audio') {
+            const metadata = fileMetadata[file.id] || { title: file.name, description: '', allow_download: false };
+            const { error: trackError } = await supabase
+              .from('audio_tracks')
+              .insert({
+                project_id: projectId,
+                title: metadata.title,
+                audio_url: fileUrl,
+                allow_download: metadata.allow_download,
+                user_id: user.id,
+              });
+
+            if (trackError) {
+              console.error('Error creating track:', trackError);
+              toast.error(`Failed to create track for ${metadata.title}`);
+            }
           }
         }
       }
@@ -325,6 +447,53 @@ export const ProjectFileUploadDialog = ({
     }
   };
 
+  const handleCreateTrackGroup = () => {
+    if (!newTrackName.trim() || trackGroupSelectedFiles.length === 0) {
+      toast.error("Please enter a track name and select at least one file");
+      return;
+    }
+
+    const selectedFileData = userFiles.filter(file => trackGroupSelectedFiles.includes(file.id));
+    const variantTypes = trackGroupSelectedFiles.map(fileId => trackGroupVariantTypes[fileId] || 'mp3');
+    const prices = trackGroupSelectedFiles.reduce((acc, fileId) => {
+      const price = trackGroupPrices[fileId];
+      if (price && !isNaN(parseFloat(price))) {
+        const file = selectedFileData.find(f => f.id === fileId);
+        if (file) {
+          acc[file.id] = parseFloat(price);
+        }
+      }
+      return acc;
+    }, {} as Record<string, number>);
+
+    const newTrackGroup = {
+      trackName: newTrackName,
+      files: selectedFileData,
+      variantTypes,
+      prices,
+      id: Date.now().toString()
+    };
+
+    setTrackGroups(prev => [...prev, newTrackGroup]);
+
+    // Reset form
+    setNewTrackName('');
+    setTrackGroupSelectedFiles([]);
+    setTrackGroupVariantTypes({});
+    setTrackGroupPrices({});
+    setShowCreateTrackGroup(false);
+
+    toast.success("Track group created successfully!");
+  };
+
+  const handleVariantTypeChange = (fileId: string, variantType: string) => {
+    setTrackGroupVariantTypes(prev => ({ ...prev, [fileId]: variantType }));
+  };
+
+  const handleVariantPriceChange = (fileId: string, price: string) => {
+    setTrackGroupPrices(prev => ({ ...prev, [fileId]: price }));
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
@@ -339,6 +508,7 @@ export const ProjectFileUploadDialog = ({
             <TabsList>
               <TabsTrigger value="upload">Upload New</TabsTrigger>
               <TabsTrigger value="library">From Library</TabsTrigger>
+              <TabsTrigger value="track-groups">Track Groups</TabsTrigger>
             </TabsList>
             <TabsContent value="upload">
               <div 
@@ -429,6 +599,88 @@ export const ProjectFileUploadDialog = ({
                 </div>
               </ScrollArea>
             </TabsContent>
+
+            <TabsContent value="track-groups">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold">Track Groups</h3>
+                    <p className="text-sm text-muted-foreground">Group multiple files as variants of the same track</p>
+                  </div>
+                  <Button
+                    onClick={() => setShowCreateTrackGroup(true)}
+                    className="flex items-center gap-2"
+                    disabled={userFiles.filter(f => f.file_type === 'audio').length === 0}
+                  >
+                    <Plus className="h-4 w-4" />
+                    Create Track Group
+                  </Button>
+                </div>
+
+                {trackGroups.length > 0 && (
+                  <div className="space-y-3">
+                    {trackGroups.map((group, groupIndex) => (
+                      <div key={groupIndex} className="border rounded-lg p-4 bg-muted/30">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-medium">{group.trackName || `Track ${groupIndex + 1}`}</h4>
+                            <Badge variant="outline">{group.files.length} files</Badge>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setTrackGroups(prev => prev.filter((_, i) => i !== groupIndex));
+                              }}
+                            >
+                              Edit
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setTrackGroups(prev => prev.filter((_, i) => i !== groupIndex));
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                          {group.files.map((file: any, fileIndex: number) => (
+                            <div key={fileIndex} className="flex items-center gap-2 p-2 bg-background rounded border">
+                              <div className="flex items-center gap-2 flex-1 min-w-0">
+                                {getFileIcon(file.file_type)}
+                                <span className="text-sm truncate" title={file.name}>{file.name}</span>
+                              </div>
+                              <Badge variant="secondary" className="text-xs">
+                                {group.variantTypes[fileIndex] || 'MP3'}
+                              </Badge>
+                            </div>
+                          ))}
+                        </div>
+
+                        {group.prices && Object.keys(group.prices).length > 0 && (
+                          <div className="mt-2 text-sm text-muted-foreground">
+                            Prices set for {Object.keys(group.prices).length} variants
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {trackGroups.length === 0 && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Music className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>No track groups created yet</p>
+                    <p className="text-sm">Create track groups to add multiple file variants (MP3, WAV, STEMS) to a single track</p>
+                  </div>
+                )}
+              </div>
+            </TabsContent>
           </Tabs>
           <div className="flex justify-end gap-2 pt-4">
             <Button 
@@ -449,6 +701,133 @@ export const ProjectFileUploadDialog = ({
           </div>
         </div>
       </DialogContent>
+
+      {/* Create Track Group Dialog */}
+      <Dialog open={showCreateTrackGroup} onOpenChange={setShowCreateTrackGroup}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Create Track Group</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="track-name">Track Name *</Label>
+              <Input
+                id="track-name"
+                placeholder="Enter track name (e.g., Beat 1)"
+                value={newTrackName}
+                onChange={(e) => setNewTrackName(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">* Required field</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Select Audio Files for Track Variants *</Label>
+              <p className="text-sm text-muted-foreground">
+                Select multiple audio files to create different variants (MP3, WAV, STEMS) of the same track
+              </p>
+
+              <div className="border rounded-lg p-4 max-h-60 overflow-y-auto">
+                <div className="grid grid-cols-2 gap-2">
+                  {userFiles
+                    .filter(file => file.file_type === 'audio')
+                    .map(file => {
+                      const isSelected = trackGroupSelectedFiles.includes(file.id);
+                      return (
+                        <div
+                          key={file.id}
+                          className={`border rounded p-2 cursor-pointer transition-all ${
+                            isSelected ? 'bg-primary/5 border-primary' : 'hover:bg-muted/50'
+                          }`}
+                          onClick={() => {
+                            setTrackGroupSelectedFiles(prev => {
+                              if (prev.includes(file.id)) {
+                                return prev.filter(id => id !== file.id);
+                              } else {
+                                return [...prev, file.id];
+                              }
+                            });
+                          }}
+                        >
+                          <div className="flex items-center gap-2">
+                            <div className="flex-shrink-0">{getFileIcon(file.file_type)}</div>
+                            <span className="text-sm truncate flex-1" title={file.name}>{file.name}</span>
+                            <div className={`w-4 h-4 rounded-full flex items-center justify-center ${
+                              isSelected ? 'bg-primary text-primary-foreground' : 'border border-muted-foreground/30'
+                            }`}>
+                              {isSelected && <Check className="h-3 w-3" />}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+                {userFiles.filter(file => file.file_type === 'audio').length === 0 && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Music className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">No audio files available</p>
+                    <p className="text-xs">Upload audio files first to create track groups</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {trackGroupSelectedFiles.length > 0 && (
+              <div className="space-y-3">
+                <Label>Configure Variants ({trackGroupSelectedFiles.length} files selected)</Label>
+                <div className="space-y-2">
+                  {trackGroupSelectedFiles.map((fileId, index) => {
+                    const file = userFiles.find(f => f.id === fileId);
+                    if (!file) return null;
+
+                    return (
+                      <div key={fileId} className="flex items-center gap-3 p-2 border rounded">
+                        <div className="flex items-center gap-2 flex-1">
+                          {getFileIcon(file.file_type)}
+                          <span className="text-sm truncate">{file.name}</span>
+                        </div>
+                        <Select
+                          value={trackGroupVariantTypes[fileId] || 'mp3'}
+                          onValueChange={(value) => handleVariantTypeChange(fileId, value)}
+                        >
+                          <SelectTrigger className="w-32">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="mp3">MP3</SelectItem>
+                            <SelectItem value="wav">WAV</SelectItem>
+                            <SelectItem value="stems">STEMS</SelectItem>
+                            <SelectItem value="other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Input
+                          type="number"
+                          placeholder="Price (optional)"
+                          className="w-20"
+                          value={trackGroupPrices[fileId] || ''}
+                          onChange={(e) => handleVariantPriceChange(fileId, e.target.value)}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4 border-t">
+            <Button variant="outline" onClick={() => setShowCreateTrackGroup(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreateTrackGroup}
+              disabled={!newTrackName.trim() || trackGroupSelectedFiles.length === 0}
+            >
+              Create Track Group
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 };

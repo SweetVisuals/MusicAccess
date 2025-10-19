@@ -1,0 +1,1 @@
+"use strict";Object.defineProperties(exports,{__esModule:{value:!0},[Symbol.toStringTag]:{value:"Module"}});const t=require("./index-CSvnpArE.cjs"),o=t.Node.create({name:"doc",topNode:!0,content:"block+"}),e=o.extend({content:"(block|columns)+"});exports.Document=e;exports.default=e;

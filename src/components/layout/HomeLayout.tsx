@@ -1,8 +1,9 @@
 import React from 'react';
 import { useLocation } from 'react-router-dom';
-import { CSSTransition, SwitchTransition } from 'react-transition-group';
 import { SiteHeader } from "@/components/homepage/site-header";
 import { AppSidebar } from "@/components/homepage/app-sidebar";
+import { MainContentArea } from "./MainContentArea";
+import { debugLog } from "@/lib/debug";
 import { SidebarInset } from "@/components/@/ui/sidebar";
 
 interface HomeLayoutProps {
@@ -11,24 +12,20 @@ interface HomeLayoutProps {
 
 export function HomeLayout({ children }: HomeLayoutProps) {
   const location = useLocation();
-  console.log('HomeLayout rendered'); // Diagnostic log
+  
   return (
-    <>
+    <div className="flex min-h-screen w-full mt-1">
       <AppSidebar variant="inset" />
       <SidebarInset>
-        <div className="@container/main flex flex-1 flex-col pt-5">
+        <div className="flex flex-1 flex-col">
           <SiteHeader />
-          <SwitchTransition mode="out-in">
-            <CSSTransition
-              key={location.pathname}
-              classNames="page-transition"
-              timeout={300}
-            >
-              <div>{children}</div>
-            </CSSTransition>
-          </SwitchTransition>
+          <MainContentArea>
+            <div className="flex-1 flex flex-col animate-fade-in">
+              {children}
+            </div>
+          </MainContentArea>
         </div>
       </SidebarInset>
-    </>
+    </div>
   );
 }

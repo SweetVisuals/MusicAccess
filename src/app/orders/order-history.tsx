@@ -1,24 +1,26 @@
 import React, { useState, useEffect } from "react";
-import { AppSidebar } from "@/components/homepage/app-sidebar";
-import { SidebarInset, SidebarProvider } from "@/components/@/ui/sidebar";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/@/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/@/ui/badge";
 import { Input } from "@/components/@/ui/input";
-import { 
-  CheckCircle, 
-  XCircle, 
-  Clock, 
-  Loader2, 
-  Download, 
-  Search, 
-  Filter, 
-  FileText, 
+import {
+  CheckCircle,
+  XCircle,
+  Clock,
+  Loader2,
+  Download,
+  Search,
+  Filter,
+  FileText,
   ShoppingBag,
   Calendar,
   Eye,
   ExternalLink,
-  Package
+  Package,
+  Music,
+  Image,
+  Video,
+  File
 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { supabase } from "@/lib/supabase";
@@ -38,30 +40,90 @@ import {
   DialogFooter,
 } from "@/components/@/ui/dialog";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
+
+const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return '0 Bytes';
+
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
+
+const getFileIcon = (fileType: string) => {
+  switch (fileType) {
+    case 'audio':
+      return <Music className="h-4 w-4 text-green-500" />;
+    case 'image':
+      return <Image className="h-4 w-4 text-blue-500" />;
+    case 'video':
+      return <Video className="h-4 w-4 text-red-500" />;
+    case 'pdf':
+      return <FileText className="h-4 w-4 text-orange-500" />;
+    default:
+      return <File className="h-4 w-4 text-gray-500" />;
+  }
+};
+
+const getFileFormat = (fileName: string): string => {
+  if (fileName && fileName.includes('.')) {
+    const extension = fileName.split('.').pop()?.toLowerCase();
+    if (extension) {
+      const formatMap: { [key: string]: string } = {
+        'mp3': 'MP3', 'wav': 'WAV', 'flac': 'FLAC', 'aac': 'AAC', 'ogg': 'OGG',
+        'wma': 'WMA', 'm4a': 'M4A', 'aiff': 'AIFF', 'au': 'AU', 'ra': 'RA',
+        'mp4': 'MP4', 'avi': 'AVI', 'mov': 'MOV', 'wmv': 'WMV', 'flv': 'FLV',
+        'webm': 'WEBM', 'mkv': 'MKV', 'jpg': 'JPG', 'jpeg': 'JPEG', 'png': 'PNG',
+        'gif': 'GIF', 'bmp': 'BMP', 'tiff': 'TIFF', 'webp': 'WEBP', 'svg': 'SVG',
+        'pdf': 'PDF', 'doc': 'DOC', 'docx': 'DOCX', 'txt': 'TXT', 'rtf': 'RTF',
+        'odt': 'ODT', 'zip': 'ZIP', 'rar': 'RAR', '7z': '7Z', 'tar': 'TAR', 'gz': 'GZ'
+      };
+      return formatMap[extension] || extension.toUpperCase();
+    }
+  }
+  return 'Unknown';
+};
+
+interface OrderFile {
+  id: string;
+  name: string;
+  url: string;
+  type: string;
+  size?: number;
+  created_at?: string;
+}
 
 interface OrderItem {
   id: string;
   title: string;
   price: number;
   type?: string;
+  selected_file_types?: string[];
+  files?: OrderFile[];
+  project_id?: string;
+  track_id?: string;
 }
 
 interface Order {
-  id: string;
-  date: string;
-  status: 'completed' | 'pending' | 'failed' | 'processing';
-  total: number;
-  items: OrderItem[];
-  processingFee: number;
-  tax: number;
-  attachmentUrl?: string;
-  attachmentName?: string;
+   id: string;
+   date: string;
+   status: 'completed' | 'pending' | 'failed' | 'processing';
+   total: number;
+   items: OrderItem[];
+   processingFee: number;
+   tax: number;
+   attachmentUrl?: string;
+   attachmentName?: string;
+   archived?: boolean;
 }
 
 export default function OrderHistoryPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const [orders, setOrders] = useState<Order[]>([]);
   const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -70,6 +132,51 @@ export default function OrderHistoryPage() {
   const [showAttachmentDialog, setShowAttachmentDialog] = useState(false);
   const [selectedAttachment, setSelectedAttachment] = useState<{url: string, name: string} | null>(null);
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [instantOrder, setInstantOrder] = useState<Order | null>(null);
+
+  // Check for refresh parameter to force refetch after checkout
+  useEffect(() => {
+    if (searchParams.get('refresh') === 'true') {
+      setRefreshKey(prev => prev + 1);
+      // Clean up the URL by removing the refresh parameter
+      const newSearchParams = new URLSearchParams(searchParams);
+      newSearchParams.delete('refresh');
+      const newUrl = `${window.location.pathname}${newSearchParams.toString() ? '?' + newSearchParams.toString() : ''}`;
+      window.history.replaceState({}, '', newUrl);
+    }
+  }, [searchParams]);
+
+  // Handle instant order display from navigation state
+  useEffect(() => {
+    if (location.state?.newOrder) {
+      const newOrder = location.state.newOrder;
+      const formattedOrder: Order = {
+        id: newOrder.id,
+        date: newOrder.order_date,
+        status: newOrder.status,
+        total: newOrder.total,
+        items: (newOrder.items || []).map((item: any) => ({
+          id: item.id,
+          title: item.title,
+          price: item.price,
+          type: item.type,
+          selected_file_types: item.selected_file_types,
+          files: item.files || [],
+          project_id: item.project_id,
+          track_id: item.track_id
+        })),
+        processingFee: newOrder.processing_fee || 0,
+        tax: newOrder.tax || 0,
+        attachmentUrl: newOrder.attachment_url,
+        attachmentName: newOrder.attachment_name,
+      };
+      setInstantOrder(formattedOrder);
+      // Clear the state to prevent it from persisting on page refresh
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [location.state]);
 
   // Sample orders data - in a real app, this would come from your database
   const sampleOrders: Order[] = [
@@ -85,7 +192,13 @@ export default function OrderHistoryPage() {
           id: "item-001",
           title: "Summer Vibes Beat",
           price: 299.99,
-          type: "Beat"
+          type: "track",
+          project_id: "proj-001",
+          track_id: "track-001",
+          files: [
+            { id: "file-001", name: "summer-vibes-beat.mp3", url: "https://example.com/files/summer-vibes-beat.mp3", type: "mp3", size: 5242880, created_at: "2024-03-10T10:00:00Z" },
+            { id: "file-002", name: "summer-vibes-beat.wav", url: "https://example.com/files/summer-vibes-beat.wav", type: "wav", size: 15728640, created_at: "2024-03-10T10:00:00Z" }
+          ]
         }
       ],
       attachmentUrl: "https://example.com/files/summer-vibes-beat.mp3",
@@ -103,7 +216,7 @@ export default function OrderHistoryPage() {
           id: "item-002",
           title: "Mix & Master Service",
           price: 499.99,
-          type: "Service"
+          type: "service"
         }
       ],
       attachmentUrl: "https://example.com/files/track-to-mix.wav",
@@ -113,15 +226,33 @@ export default function OrderHistoryPage() {
       id: "ORD-003",
       date: "2024-02-28",
       status: "completed",
-      total: 99.89,
-      processingFee: 2.70,
-      tax: 7.20,
+      total: 199.89,
+      processingFee: 5.40,
+      tax: 14.40,
       items: [
         {
           id: "item-003",
-          title: "Lo-Fi Beat Collection",
-          price: 89.99,
-          type: "Beat Pack"
+          title: "Track 1",
+          price: 49.99,
+          type: "track",
+          project_id: "proj-002",
+          track_id: "track-002",
+          files: [
+            { id: "file-003", name: "track1.mp3", url: "https://example.com/files/track1.mp3", type: "mp3", size: 4194304, created_at: "2024-02-25T14:30:00Z" },
+            { id: "file-004", name: "track1.wav", url: "https://example.com/files/track1.wav", type: "wav", size: 12582912, created_at: "2024-02-25T14:30:00Z" }
+          ]
+        },
+        {
+          id: "item-004",
+          title: "Track 2",
+          price: 49.99,
+          type: "track",
+          project_id: "proj-002",
+          track_id: "track-003",
+          files: [
+            { id: "file-005", name: "track2.mp3", url: "https://example.com/files/track2.mp3", type: "mp3", size: 3670016, created_at: "2024-02-25T15:45:00Z" },
+            { id: "file-006", name: "track2.wav", url: "https://example.com/files/track2.wav", type: "wav", size: 11010048, created_at: "2024-02-25T15:45:00Z" }
+          ]
         }
       ],
       attachmentUrl: "https://example.com/files/lofi-collection.zip",
@@ -136,61 +267,132 @@ export default function OrderHistoryPage() {
         const { data, error } = await supabase
           .from('orders')
           .select('*')
+          .eq('user_id', user?.id)
           .order('order_date', { ascending: false });
 
         if (error) {
           console.error("Error fetching orders:", error);
           toast.error("Failed to fetch orders.");
-          setOrders([]);
-          setFilteredOrders([]);
+          // Show sample data if fetch fails
+          setOrders(sampleOrders);
+          setFilteredOrders(sampleOrders);
         } else {
           // Map fetched data to the Order interface structure
-          const fetchedOrders: Order[] = data.map((order: any) => ({
-            id: order.id,
-            date: order.order_date,
-            status: order.status,
-            total: order.total || order.price, // Use total if available, otherwise price
-            items: order.items || [], // Assuming items is stored as JSONB, default to empty array if null
-            processingFee: order.processing_fee || 0,
-            tax: order.tax || 0,
-            attachmentUrl: order.attachment_url,
-            attachmentName: order.attachment_name,
-          }));
+          const fetchedOrders: Order[] = data.map((order: any) => {
+            // Use the files and project_id that were already stored in the order during checkout
+            const itemsWithFiles = (order.items || []).map((item: any) => {
+              let files = Array.isArray(item.files) ?
+                item.files
+                  .filter((file: any, index: number, self: any[]) => self.findIndex((f: any) => f.id === file.id) === index) // Deduplicate by id
+                  .map((file: any, index: number) => ({
+                    id: `${item.id}-${file.id || `file-${index}`}`, // Ensure unique ID
+                    name: file.name,
+                    url: file.url,
+                    type: file.type,
+                    size: file.size,
+                    created_at: file.created_at
+                  })) : [];
 
-          setOrders(fetchedOrders);
-          setFilteredOrders(fetchedOrders); // Apply initial filter (which is none at this point)
+              // If no files, create virtual file for tracks
+              if (files.length === 0 && item.type === 'track') {
+                const extension = item.file_name ? item.file_name.split('.').pop()?.toLowerCase() : 'mp3';
+                const virtualName = item.file_name || `${item.title}.${extension}`;
+                files = [{
+                  id: `virtual-${item.id}-${extension}`,
+                  name: virtualName,
+                  url: `placeholder://track-${item.track_id || item.id}-${extension}`,
+                  type: extension,
+                  size: undefined,
+                  created_at: new Date().toISOString()
+                }];
+              }
+
+              return {
+                ...item,
+                files
+              };
+            });
+
+            return {
+              id: order.id,
+              date: order.order_date,
+              status: order.status,
+              total: order.total,
+              items: itemsWithFiles,
+              processingFee: order.processing_fee || 0,
+              tax: order.tax || 0,
+              attachmentUrl: order.attachment_url,
+              attachmentName: order.attachment_name,
+              archived: order.archived || false,
+            };
+          });
+
+          // If no orders from database, show sample data for demo
+          if (fetchedOrders.length === 0) {
+            setOrders(sampleOrders);
+            setFilteredOrders(sampleOrders);
+          } else {
+            setOrders(fetchedOrders);
+            setFilteredOrders(fetchedOrders);
+
+            // Check if any order has items with no files, and retry if needed
+            const hasEmptyFiles = fetchedOrders.some(order =>
+              order.items.some(item => !item.files || item.files.length === 0)
+            );
+
+            if (hasEmptyFiles && retryCount < 3) {
+              setTimeout(() => {
+                setRetryCount(prev => prev + 1);
+              }, 2000); // Retry after 2 seconds
+            }
+          }
         }
       } catch (error) {
         console.error("Error fetching orders:", error);
         toast.error("An unexpected error occurred while fetching orders.");
+        // Show sample data on error
+        setOrders(sampleOrders);
+        setFilteredOrders(sampleOrders);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchOrders();
-  }, [user]); // Re-run effect when user changes
+    if (user) {
+      fetchOrders();
+    } else {
+      // For guest users, show sample orders
+      setOrders(sampleOrders);
+      setFilteredOrders(sampleOrders);
+      setIsLoading(false);
+    }
+  }, [user, retryCount, refreshKey]);
 
   useEffect(() => {
     // Apply filters when search query or status filter changes
-    let filtered = [...orders];
-    
+    let allOrders = [...orders];
+    if (instantOrder && !orders.find(o => o.id === instantOrder.id)) {
+      allOrders = [instantOrder, ...allOrders];
+    }
+
+    let filtered = [...allOrders];
+
     // Apply search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(order => 
-        order.id.toLowerCase().includes(query) || 
+      filtered = filtered.filter(order =>
+        order.id.toLowerCase().includes(query) ||
         order.items.some(item => item.title.toLowerCase().includes(query))
       );
     }
-    
+
     // Apply status filter
     if (statusFilter !== "all") {
       filtered = filtered.filter(order => order.status === statusFilter);
     }
-    
+
     setFilteredOrders(filtered);
-  }, [orders, searchQuery, statusFilter]);
+  }, [orders, searchQuery, statusFilter, instantOrder]);
 
   const handleViewAttachment = (attachment: {url: string, name: string}) => {
     setSelectedAttachment(attachment);
@@ -217,11 +419,9 @@ export default function OrderHistoryPage() {
   };
 
   return (
-    <SidebarProvider>
-      <AppSidebar variant="inset" />
-      <SidebarInset>
-        <div className="flex flex-1 flex-col">
-          <div className="@container/main flex flex-1 flex-col gap-4 animate-fade-in p-6">
+    <>
+      <div className="flex flex-1 flex-col">
+      <div className="@container/main flex flex-1 flex-col gap-4 animate-fade-in p-6">
             {/* Header */}
             <div className="flex items-center justify-between">
               <div>
@@ -378,71 +578,245 @@ export default function OrderHistoryPage() {
                                       </div>
                                     </div>
                                     
-                                    {/* Order Items */}
-                                    <div>
-                                      <h4 className="font-medium mb-2">Order Items</h4>
-                                      <div className="rounded-md border">
-                                        <Table>
-                                          <TableHeader>
-                                            <TableRow>
-                                              <TableHead>Item</TableHead>
-                                              <TableHead>Type</TableHead>
-                                              <TableHead>Price</TableHead>
-                                              <TableHead className="text-right">Actions</TableHead>
-                                            </TableRow>
-                                          </TableHeader>
-                                          <TableBody>
-                                            {order.items.map((item) => (
-                                              <TableRow key={item.id}>
-                                                <TableCell>{item.title}</TableCell>
-                                                <TableCell>{item.type || 'Beat'}</TableCell>
-                                                <TableCell>${item.price.toFixed(2)}</TableCell>
-                                                <TableCell className="text-right">
-                                                  {order.attachmentUrl && (
-                                                    <Button 
-                                                      variant="ghost" 
-                                                      size="sm"
-                                                      onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleViewAttachment({
-                                                          url: order.attachmentUrl!,
-                                                          name: order.attachmentName || item.title
-                                                        });
-                                                      }}
-                                                    >
-                                                      <Eye className="h-4 w-4 mr-2" />
-                                                      View
-                                                    </Button>
-                                                  )}
-                                                  <Button 
-                                                    variant="ghost" 
-                                                    size="sm"
-                                                    onClick={(e) => {
-                                                      e.stopPropagation();
-                                                      if (order.attachmentUrl) {
-                                                        window.open(order.attachmentUrl, '_blank');
-                                                      }
-                                                    }}
-                                                  >
-                                                    <Download className="h-4 w-4 mr-2" />
-                                                    Download
-                                                  </Button>
-                                                </TableCell>
-                                              </TableRow>
-                                            ))}
-                                          </TableBody>
-                                        </Table>
-                                      </div>
-                                    </div>
-                                    
+                                    {/* Purchased Files - Grouped by Project */}
+                                     <div>
+                                       <h4 className="font-medium mb-3 flex items-center gap-2">
+                                         <Package className="h-4 w-4" />
+                                         Purchased Items
+                                         <Badge variant="outline" className="text-xs">
+                                           {order.items.reduce((total, item) => total + (item.files?.length || 0), 0)} files
+                                         </Badge>
+                                       </h4>
+                                       <div className="space-y-6">
+                                         {/* Group items by project_id */}
+                                         {(() => {
+                                           const projectGroups = order.items.reduce((groups, item) => {
+                                             const projectId = item.project_id || 'no-project';
+                                             if (!groups[projectId]) {
+                                               groups[projectId] = {
+                                                 project_id: item.project_id,
+                                                 project_title: item.project_id ? 'Project Files' : 'Individual Items',
+                                                 items: [],
+                                                 allFiles: []
+                                               };
+                                             }
+                                             groups[projectId].items.push(item);
+                                             groups[projectId].allFiles.push(...(item.files || []));
+                                             return groups;
+                                           }, {} as Record<string, { project_id?: string; project_title: string; items: OrderItem[]; allFiles: OrderFile[] }>);
+
+                                           return Object.values(projectGroups).map((group, groupIndex) => (
+                                             <div key={group.project_id || `group-${groupIndex}`} className="border rounded-lg p-4">
+                                               {/* Project Header */}
+                                               <div className="flex items-center justify-between mb-4">
+                                                 <h5 className="font-medium flex items-center gap-2">
+                                                   <Music className="h-4 w-4 text-primary" />
+                                                   {group.project_title}
+                                                   {group.project_id && (
+                                                     <Badge variant="outline" className="text-xs">
+                                                       Project
+                                                     </Badge>
+                                                   )}
+                                                 </h5>
+                                                 <Badge variant="outline" className="text-xs">
+                                                   {group.allFiles.length} file{group.allFiles.length !== 1 ? 's' : ''}
+                                                 </Badge>
+                                               </div>
+
+                                               {/* Contract Access for Projects */}
+                                               {group.project_id && (
+                                                 <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-200 dark:border-blue-800">
+                                                   <h6 className="font-medium text-blue-900 dark:text-blue-100 mb-2 flex items-center gap-2 text-sm">
+                                                     <FileText className="h-4 w-4" />
+                                                     Contract & Legal Documents
+                                                   </h6>
+                                                   <p className="text-xs text-blue-700 dark:text-blue-300 mb-2">
+                                                     Access the licensing agreement and contract for this project.
+                                                   </p>
+                                                   <div className="flex gap-2">
+                                                     <Button
+                                                       variant="outline"
+                                                       size="sm"
+                                                       className="gap-1 h-7 text-xs border-blue-300 text-blue-700 hover:bg-blue-100 dark:border-blue-700 dark:text-blue-300 dark:hover:bg-blue-900/20"
+                                                       onClick={async (e) => {
+                                                         e.stopPropagation();
+                                                         try {
+                                                           const { data: project, error } = await supabase
+                                                             .from('projects')
+                                                             .select('contract_url')
+                                                             .eq('id', group.project_id)
+                                                             .single();
+
+                                                           if (error) throw error;
+
+                                                           if (project?.contract_url) {
+                                                             window.open(project.contract_url, '_blank');
+                                                           } else {
+                                                             toast.error('Contract not available for this project');
+                                                           }
+                                                         } catch (error) {
+                                                           console.error('Error fetching contract:', error);
+                                                           toast.error('Failed to load contract');
+                                                         }
+                                                       }}
+                                                     >
+                                                       <Eye className="h-3 w-3" />
+                                                       View Contract
+                                                     </Button>
+                                                     <Button
+                                                       variant="outline"
+                                                       size="sm"
+                                                       className="gap-1 h-7 text-xs border-blue-300 text-blue-700 hover:bg-blue-100 dark:border-blue-700 dark:text-blue-300 dark:hover:bg-blue-900/20"
+                                                       onClick={async (e) => {
+                                                         e.stopPropagation();
+                                                         try {
+                                                           const { data: project, error } = await supabase
+                                                             .from('projects')
+                                                             .select('contract_url')
+                                                             .eq('id', group.project_id)
+                                                             .single();
+
+                                                           if (error) throw error;
+
+                                                           if (project?.contract_url) {
+                                                             const link = document.createElement('a');
+                                                             link.href = project.contract_url;
+                                                             link.download = `contract-${group.project_id}.pdf`;
+                                                             document.body.appendChild(link);
+                                                             link.click();
+                                                             document.body.removeChild(link);
+                                                           } else {
+                                                             toast.error('Contract not available for this project');
+                                                           }
+                                                         } catch (error) {
+                                                           console.error('Error downloading contract:', error);
+                                                           toast.error('Failed to download contract');
+                                                         }
+                                                       }}
+                                                     >
+                                                       <Download className="h-3 w-3" />
+                                                       Download Contract
+                                                     </Button>
+                                                   </div>
+                                                 </div>
+                                               )}
+
+                                               {/* Files Grid */}
+                                               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                                                 {group.allFiles.map((file) => {
+                                                   const fileType = file.name.toLowerCase().includes('.mp3') || file.name.toLowerCase().includes('.wav') || file.name.toLowerCase().includes('.flac') ? 'audio' :
+                                                                    file.name.toLowerCase().includes('.jpg') || file.name.toLowerCase().includes('.png') || file.name.toLowerCase().includes('.gif') ? 'image' :
+                                                                    file.name.toLowerCase().includes('.mp4') || file.name.toLowerCase().includes('.avi') || file.name.toLowerCase().includes('.mov') ? 'video' :
+                                                                    file.name.toLowerCase().includes('.pdf') ? 'pdf' : 'file';
+                                                   return (
+                                                     <div
+                                                       key={file.id}
+                                                       className="border rounded-lg p-3 hover:bg-muted/50 transition-all duration-200 cursor-pointer flex flex-col overflow-hidden"
+                                                     >
+                                                       <div className="flex items-center justify-between mb-2">
+                                                         <div className="flex items-center gap-2 max-w-[80%]">
+                                                           <div className="flex-shrink-0">
+                                                             {getFileIcon(fileType)}
+                                                           </div>
+                                                           <span className="font-medium truncate text-sm" title={file.name}>{file.name}</span>
+                                                         </div>
+                                                       </div>
+                                                       <div className="mt-2 flex-1 flex flex-col">
+                                                         {fileType === 'audio' && (
+                                                           <div className="bg-muted/50 rounded-md h-16 flex items-center justify-center mb-2">
+                                                             <Music className="h-6 w-6 text-primary/50" />
+                                                           </div>
+                                                         )}
+                                                         {fileType === 'image' && (
+                                                           <div className="bg-muted/50 rounded-md h-16 flex items-center justify-center mb-2">
+                                                             <Image className="h-6 w-6 text-green-500/50" />
+                                                           </div>
+                                                         )}
+                                                         {fileType === 'video' && (
+                                                           <div className="bg-muted/50 rounded-md h-16 flex items-center justify-center mb-2">
+                                                             <Video className="h-6 w-6 text-red-500/50" />
+                                                           </div>
+                                                         )}
+                                                         {(fileType !== 'audio' && fileType !== 'image' && fileType !== 'video') && (
+                                                           <div className="bg-muted/50 rounded-md h-16 flex items-center justify-center mb-2">
+                                                             <File className="h-6 w-6 text-muted-foreground/50" />
+                                                           </div>
+                                                         )}
+                                                         <div className="text-xs text-muted-foreground mt-auto space-y-1">
+                                                           <div className="flex justify-between">
+                                                             <span>Format:</span>
+                                                             <span>{getFileFormat(file.name)}</span>
+                                                           </div>
+                                                           {file.size && (
+                                                             <div className="flex justify-between">
+                                                               <span>Size:</span>
+                                                               <span>{formatFileSize(file.size)}</span>
+                                                             </div>
+                                                           )}
+                                                         </div>
+                                                       </div>
+                                                       <div className="flex gap-1 mt-2">
+                                                         <Button
+                                                           variant="ghost"
+                                                           size="sm"
+                                                           className="flex-1 h-6 text-xs"
+                                                           onClick={(e) => {
+                                                             e.stopPropagation();
+                                                             handleViewAttachment({
+                                                               url: file.url,
+                                                               name: file.name
+                                                             });
+                                                           }}
+                                                         >
+                                                           <Eye className="h-3 w-3 mr-1" />
+                                                           View
+                                                         </Button>
+                                                         <Button
+                                                           variant="ghost"
+                                                           size="sm"
+                                                           className="flex-1 h-6 text-xs"
+                                                           onClick={(e) => {
+                                                             e.stopPropagation();
+                                                             window.open(file.url, '_blank');
+                                                           }}
+                                                         >
+                                                           <Download className="h-3 w-3 mr-1" />
+                                                           Download
+                                                         </Button>
+                                                       </div>
+                                                     </div>
+                                                   );
+                                                 })}
+                                               </div>
+
+                                               {/* Show individual item titles if multiple items in group */}
+                                               {group.items.length > 1 && (
+                                                 <div className="mt-4 pt-3 border-t">
+                                                   <p className="text-xs text-muted-foreground mb-2">Items in this project:</p>
+                                                   <div className="flex flex-wrap gap-1">
+                                                     {group.items.map((item) => (
+                                                       <Badge key={item.id} variant="secondary" className="text-xs">
+                                                         {item.title}
+                                                       </Badge>
+                                                     ))}
+                                                   </div>
+                                                 </div>
+                                               )}
+                                             </div>
+                                           ));
+                                         })()}
+                                       </div>
+                                     </div>
+
+
                                     {/* Actions */}
                                     <div className="flex justify-end gap-2 mt-4">
                                       <Button variant="outline" size="sm" className="gap-2">
                                         <Download className="h-4 w-4" />
                                         Invoice
                                       </Button>
-                                      <Button 
-                                        size="sm" 
+                                      <Button
+                                        size="sm"
                                         className="gap-2"
                                         onClick={(e) => {
                                           e.stopPropagation();
@@ -478,9 +852,8 @@ export default function OrderHistoryPage() {
                 </div>
               </CardFooter>
             </Card>
-          </div>
         </div>
-      </SidebarInset>
+      </div>
 
       {/* View Attachment Dialog */}
       <Dialog open={showAttachmentDialog} onOpenChange={setShowAttachmentDialog}>
@@ -519,7 +892,7 @@ export default function OrderHistoryPage() {
             <Button variant="outline" onClick={() => setShowAttachmentDialog(false)}>
               Close
             </Button>
-            <Button 
+            <Button
               onClick={() => {
                 if (selectedAttachment?.url) {
                   window.open(selectedAttachment.url, '_blank');
@@ -532,6 +905,6 @@ export default function OrderHistoryPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </SidebarProvider>
+    </>
   );
 }

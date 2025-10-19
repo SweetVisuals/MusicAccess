@@ -1,10 +1,16 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { StorageProvider } from "@/contexts/storage-context";
-import { SidebarProvider } from "@/components/@/ui/sidebar";
 import { HomeLayout } from "@/components/layout/HomeLayout";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { ThemeToggle } from "@/components/theme-toggle"; // Import ThemeToggle
+import { ThemeToggle } from "@/components/theme-toggle";
+import { AudioPlayer } from "@/components/audio/audio-player";
+import { GemClaimPopup } from "@/components/GemClaimPopup";
+import { GemsDialogWrapper } from "@/components/GemsDialogWrapper";
+import MessagingPopup from "@/components/MessagingPopup";
+import NotesPopup from "@/components/NotesPopup";
+import { NotesMessagesToolbar } from "@/components/homepage/NotesMessagesToolbar";
+import { useDailyGems } from "@/hooks/useDailyGems";
+import { useAuth } from "@/contexts/auth-context";
 
 interface RootLayoutProps {
   children: React.ReactNode;
@@ -12,8 +18,20 @@ interface RootLayoutProps {
 
 export function RootLayout({ children }: RootLayoutProps) {
   const location = useLocation();
+  const currentPath = location.pathname;
+  const { user } = useAuth();
+  const { canClaim } = useDailyGems();
+  const [showGemPopup, setShowGemPopup] = useState(false);
+  const [dismissedToday, setDismissedToday] = useState(false);
 
-  // Define routes that should use the HomeLayout
+  useEffect(() => {
+    if (user && canClaim && !showGemPopup && !dismissedToday) {
+      // Show popup when user is logged in and can claim gems and hasn't dismissed today
+      setShowGemPopup(true);
+    }
+  }, [user, canClaim, showGemPopup, dismissedToday]);
+
+  // Define routes that should use the HomeLayout (public pages)
   const homeLayoutRoutes = [
     '/',
     '/find-talent',
@@ -25,12 +43,10 @@ export function RootLayout({ children }: RootLayoutProps) {
     '/home/mixing-mastering',
     '/following',
     '/checkout',
-    '/view/:projectId', // Public project view
     '/search',
-    '/user/:username', // Public user profile view
   ];
 
-  // Define routes that should use the DashboardLayout
+  // Define routes that should use the DashboardLayout (protected pages)
   const dashboardLayoutRoutes = [
     '/dashboard',
     '/user/dashboard',
@@ -45,7 +61,10 @@ export function RootLayout({ children }: RootLayoutProps) {
     '/files',
     '/dashboard/services',
     '/messages',
-    '/orders/history', // Protected order history
+    '/notes',
+    '/orders/history',
+    '/upload',
+    '/studio',
   ];
 
   // Routes that should have no layout (e.g., auth pages)
@@ -55,52 +74,43 @@ export function RootLayout({ children }: RootLayoutProps) {
     '/auth/callback',
   ];
 
-  const currentPath = location.pathname;
+  // Dynamic routes with specific logic
+  const isUserProfileRoute = /^\/user\/[^/]+$/.test(currentPath);
+  const isProjectViewRoute = /^\/view\/[^/]+$/.test(currentPath);
 
-  const shouldUseHomeLayout = homeLayoutRoutes.some(path => {
-    if (path.includes(':')) {
-      const regex = new RegExp(`^${path.replace(/:\w+/g, '[^/]+')}$`);
-      return regex.test(currentPath);
-    }
-    return currentPath === path;
-  });
-
-  const shouldUseDashboardLayout = dashboardLayoutRoutes.some(path => {
-    if (path.includes(':')) {
-      const regex = new RegExp(`^${path.replace(/:\w+/g, '[^/]+')}$`);
-      return regex.test(currentPath);
-    }
-    return currentPath === path;
-  });
-
-  const shouldUseNoLayout = noLayoutRoutes.includes(currentPath);
-
+  // Determine which layout to use
   let contentToRender = children;
 
-  if (shouldUseDashboardLayout) {
-    console.log(`RootLayout: Applying DashboardLayout for path: ${currentPath}`);
+  if (noLayoutRoutes.includes(currentPath)) {
+    // No layout for auth pages
+    contentToRender = children;
+  } else if (dashboardLayoutRoutes.includes(currentPath)) {
+    // Dashboard layout for protected pages
     contentToRender = <DashboardLayout>{children}</DashboardLayout>;
-  } else if (shouldUseHomeLayout) {
-    console.log(`RootLayout: Applying HomeLayout for path: ${currentPath}`);
+  } else if (homeLayoutRoutes.includes(currentPath) || isUserProfileRoute || isProjectViewRoute) {
+    // Home layout for public pages, user profiles, and project views
     contentToRender = <HomeLayout>{children}</HomeLayout>;
-  } else if (shouldUseNoLayout) {
-    console.log(`RootLayout: Applying NoLayout for path: ${currentPath}`);
-    contentToRender = children; // Render children directly without any layout
   } else {
-    // Fallback for any routes not explicitly defined, or if there's a mismatch.
-    // For now, render children directly.
-    console.warn(`RootLayout: No specific layout defined for path: ${currentPath}. Rendering children directly.`);
+    // Fallback to no layout for unknown routes
     contentToRender = children;
   }
 
   return (
-    <StorageProvider>
-      <SidebarProvider>
-        {contentToRender}
-        <div className="fixed bottom-4 right-4 z-50">
-          <ThemeToggle />
-        </div>
-      </SidebarProvider>
-    </StorageProvider>
+    <>
+      {contentToRender}
+      <div className="fixed bottom-4 right-4 z-50">
+        <ThemeToggle />
+      </div>
+      <AudioPlayer />
+      <GemClaimPopup
+        open={showGemPopup}
+        onOpenChange={setShowGemPopup}
+        onDismiss={() => setDismissedToday(true)}
+      />
+      <GemsDialogWrapper />
+      <MessagingPopup />
+      <NotesPopup />
+      <NotesMessagesToolbar />
+    </>
   );
 }

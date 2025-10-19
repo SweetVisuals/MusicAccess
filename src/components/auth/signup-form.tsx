@@ -14,15 +14,12 @@ interface SignupData {
   password: string
 }
 
-export function SignupForm({
-  className,
-  ...props
-}: React.ComponentPropsWithoutRef<"div">) {
+export function SignupForm() {
   const [isLoading, setIsLoading] = useState(false)
   const navigate = useNavigate()
 
   return (
-    <div className={cn("flex flex-col gap-6", className)} {...props}>
+    <div className="grid gap-6">
       <form onSubmit={async (e) => {
         e.preventDefault();
         setIsLoading(true);

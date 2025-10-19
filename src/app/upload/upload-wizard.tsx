@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { toast } from "sonner";
 import { useUploadWizard } from '@/hooks/useUploadWizard';
@@ -9,7 +9,20 @@ import { FileBrowser } from '@/components/upload/FileBrowser';
 import { UploadHeader } from '@/components/upload/UploadHeader';
 import { FilterControls } from '@/components/upload/FilterControls';
 import { supabase } from '@/lib/supabase';
-import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
+import {
+  Upload,
+  FolderPlus,
+  RefreshCw,
+  Download,
+  Trash2,
+} from 'lucide-react';
 
 export default function UploadWizard() {
   const {
@@ -22,12 +35,16 @@ export default function UploadWizard() {
     showNewFolderDialog,
     setShowNewFolderDialog,
     currentFolder,
+    currentFolderName,
+    currentFolderPath,
     folders,
     isLoading,
     sortOrder,
     sortDirection,
     draggedFile,
     setDraggedFile,
+    draggedFolder,
+    setDraggedFolder,
     dropTarget,
     setDropTarget,
     dragCounter,
@@ -54,7 +71,9 @@ export default function UploadWizard() {
     confirmDeleteSelected,
     fetchFiles,
     setCurrentFolder,
+    uploadedFiles,
   } = useUploadWizard();
+
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles.length === 0) {
@@ -89,16 +108,16 @@ export default function UploadWizard() {
   const handleDragEnter = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
-    if (draggedFile) return;
+    if (draggedFile || draggedFolder) return;
     setDragCounter(prev => prev + 1);
-  }, [draggedFile, setDragCounter]);
+  }, [draggedFile, draggedFolder, setDragCounter]);
 
   const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
-    if (draggedFile) return;
+    if (draggedFile || draggedFolder) return;
     setDragCounter(prev => Math.max(prev - 1, 0));
-  }, [draggedFile, setDragCounter]);
+  }, [draggedFile, draggedFolder, setDragCounter]);
 
   const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -110,7 +129,7 @@ export default function UploadWizard() {
     e.stopPropagation();
     setDragCounter(0);
 
-    if (draggedFile) {
+    if (draggedFile || draggedFolder) {
       // Internal drag-and-drop
       return;
     }
@@ -127,12 +146,12 @@ export default function UploadWizard() {
         toast.warning('No valid audio files found in the dropped items.');
       }
     }
-  }, [draggedFile, handleUpload, setDragCounter]);
+  }, [draggedFile, draggedFolder, handleUpload, setDragCounter]);
 
   const processDroppedItems = async (items: DataTransferItemList) => {
     const audioFiles: File[] = [];
     const promises: Promise<void>[] = [];
-    
+
     const processEntry = async (entry: FileSystemEntry) => {
       if (entry.isFile) {
         const fileEntry = entry as FileSystemFileEntry;
@@ -162,7 +181,7 @@ export default function UploadWizard() {
         }));
       }
     };
-    
+
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
       if (item.kind === 'file') {
@@ -172,9 +191,9 @@ export default function UploadWizard() {
         }
       }
     }
-    
+
     await Promise.all(promises);
-    
+
     if (audioFiles.length > 0) {
       const filesToUpload = audioFiles.slice(0, 10);
       if (audioFiles.length > 10) {
@@ -188,84 +207,142 @@ export default function UploadWizard() {
 
   const isDragging = dragCounter > 0;
 
+  const handleFilesDroppedOnFolder = useCallback((files: File[], folderId: string) => {
+    // Filter for supported file types
+    const supportedFiles = files.filter(file =>
+      file.type.startsWith('audio/') ||
+      file.type.startsWith('image/') ||
+      file.type.startsWith('video/') ||
+      file.type.includes('pdf')
+    );
+
+    if (supportedFiles.length === 0) {
+      toast.warning('No supported file types found. Only audio, image, video, and PDF files are accepted.');
+      return;
+    }
+
+    // Limit to 10 files
+    const filesToUpload = supportedFiles.slice(0, 10);
+    if (supportedFiles.length > 10) {
+      toast.warning('Only up to 10 files are allowed at once.');
+    }
+
+    // Upload files to the specific folder
+    handleUpload(filesToUpload, folderId);
+  }, [handleUpload, toast]);
+
   return (
-    <DashboardLayout show_header={false}>
-      <div className="flex flex-col h-full w-full" style={{ maxWidth: 'none', width: '100%' }}>
-        <div className="p-6 space-y-4">
-          <UploadHeader
-            currentFolder={currentFolder}
-            folders={folders}
-            navigateToFolder={setCurrentFolder}
-            setShowNewFolderDialog={setShowNewFolderDialog}
-            openFilePicker={open}
-          />
-          <FilterControls
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            sortOrder={sortOrder}
-            sortDirection={sortDirection}
-            handleChangeSortOrder={handleChangeSortOrder}
-          />
-          <UploadProgress
-            isUploading={isUploading}
-            uploadProgress={uploadProgress}
-            fileCount={files.length}
-          />
-        </div>
-        <div 
-          className="flex-1 overflow-hidden px-6 pb-6"
-          onDragEnter={handleDragEnter}
-          onDragLeave={handleDragLeave}
-          onDragOver={handleDragOver}
-          onDrop={handleDrop}
-        >
-          <FileBrowser
-            isLoading={isLoading}
-            folders={filteredFolders}
-            files={sortedFilesInView}
-            currentFolder={currentFolder}
-            dropTarget={dropTarget}
-            draggedFile={draggedFile}
-            selectedItems={selectedItems}
-            isDragging={isDragging}
-            handleFileDoubleClick={handleFileDoubleClick}
-            handleDeleteFile={handleDeleteFile}
-            handleDeleteFolder={handleDeleteFolder}
-            navigateToFolder={setCurrentFolder}
-            setDraggedFile={setDraggedFile}
-            setDropTarget={setDropTarget}
-            setSelectedItems={setSelectedItems}
-            openFilePicker={open}
-            setShowNewFolderDialog={setShowNewFolderDialog}
-            handleRefresh={handleRefresh}
-            handleDownloadSelected={handleDownloadSelected}
-            handleDeleteSelected={handleDeleteSelected}
-            supabase={supabase}
-            fetchFiles={fetchFiles}
-            toast={toast}
-          />
-        </div>
-        <DeleteConfirmationDialog
-          isOpen={showDeleteDialog}
-          onOpenChange={setShowDeleteDialog}
-          onConfirm={() => {
-            if (deleteItemType === 'file') {
-              confirmDeleteFile();
-            } else if (deleteItemType === 'folder') {
-              confirmDeleteFolder();
-            } else {
-              confirmDeleteSelected();
-            }
-          }}
-          itemType={deleteItemType}
-          itemName={deleteItemName}
+    <div className="flex flex-1 flex-col px-6 pt-6">
+      <UploadHeader
+        currentFolder={currentFolder}
+        currentFolderName={currentFolderName}
+        currentFolderPath={currentFolderPath}
+        folders={folders}
+        navigateToFolder={setCurrentFolder}
+        setShowNewFolderDialog={setShowNewFolderDialog}
+        openFilePicker={open}
+      />
+      <div className="space-y-4 px-1">
+        <FilterControls
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          sortOrder={sortOrder}
+          sortDirection={sortDirection}
+          handleChangeSortOrder={handleChangeSortOrder}
         />
-        <NewFolderDialog
-          isOpen={showNewFolderDialog}
-          onOpenChange={setShowNewFolderDialog}
-          onCreateFolder={handleCreateFolder}
+        <UploadProgress
+          isUploading={isUploading}
+          uploadProgress={uploadProgress}
+          fileCount={files.length}
         />
       </div>
-    </DashboardLayout>
+      <div
+        className="flex-1 h-full px-1"
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
+      >
+        <FileBrowser
+          isLoading={isLoading}
+          folders={filteredFolders}
+          files={sortedFilesInView}
+          currentFolder={currentFolder}
+          currentFolderName={currentFolderName}
+          dropTarget={dropTarget}
+          draggedFile={draggedFile}
+          draggedFolder={draggedFolder}
+          selectedItems={selectedItems}
+          isDragging={isDragging}
+          handleFileDoubleClick={handleFileDoubleClick}
+          handleDeleteFile={handleDeleteFile}
+          handleDeleteFolder={handleDeleteFolder}
+          navigateToFolder={setCurrentFolder}
+          setDraggedFile={setDraggedFile}
+          setDraggedFolder={setDraggedFolder}
+          setDropTarget={setDropTarget}
+          setSelectedItems={setSelectedItems}
+          openFilePicker={open}
+          setShowNewFolderDialog={setShowNewFolderDialog}
+          handleRefresh={handleRefresh}
+          handleDownloadSelected={handleDownloadSelected}
+          handleDeleteSelected={handleDeleteSelected}
+          supabase={supabase}
+          toast={toast}
+          uploadedFiles={uploadedFiles}
+          onFilesDroppedOnFolder={handleFilesDroppedOnFolder}
+          onContextMenuOpen={(open) => {
+            if (open) {
+              setSelectedItems([]);
+            }
+          }}
+          contextMenuItems={
+            <>
+              <ContextMenuItem onClick={open}>
+                <Upload className="h-4 w-4 mr-2" /> Upload Files
+              </ContextMenuItem>
+              <ContextMenuItem onClick={() => setShowNewFolderDialog(true)}>
+                <FolderPlus className="h-4 w-4 mr-2" /> New Folder
+              </ContextMenuItem>
+              <ContextMenuSeparator />
+              <ContextMenuItem onClick={handleRefresh}>
+                <RefreshCw className="h-4 w-4 mr-2" /> Refresh
+              </ContextMenuItem>
+              <ContextMenuSeparator />
+              {selectedItems.length > 0 && (
+                <>
+                  <ContextMenuItem onClick={handleDownloadSelected}>
+                    <Download className="h-4 w-4 mr-2" /> Download Selected
+                  </ContextMenuItem>
+                  <ContextMenuItem onClick={handleDeleteSelected} className="text-red-500">
+                    <Trash2 className="h-4 w-4 mr-2" /> Delete Selected
+                  </ContextMenuItem>
+                </>
+              )}
+            </>
+          }
+        />
+      </div>
+      <DeleteConfirmationDialog
+        isOpen={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        onConfirm={() => {
+          if (deleteItemType === 'file') {
+            confirmDeleteFile();
+          } else if (deleteItemType === 'folder') {
+            confirmDeleteFolder();
+          } else {
+            confirmDeleteSelected();
+          }
+        }}
+        itemType={deleteItemType}
+        itemName={deleteItemName}
+      />
+      <NewFolderDialog
+        isOpen={showNewFolderDialog}
+        onOpenChange={setShowNewFolderDialog}
+        onCreateFolder={handleCreateFolder}
+      />
+    </div>
   );
 }

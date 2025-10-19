@@ -1,6 +1,7 @@
 import { Separator } from "@/components/@/ui/separator"
-import { SidebarTrigger } from "@/components/@/ui/sidebar"
+import { SidebarTrigger, useSidebar } from "@/components/@/ui/sidebar"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/@/ui/avatar"
+import { Logo } from "@/components/ui/logo"
 import { Button } from "@/components/@/ui/button"
 import { Badge } from "@/components/@/ui/badge"
 import { Input } from "@/components/@/ui/input"
@@ -12,12 +13,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/@/ui/dropdown-menu"
-import { Bell, Settings, LogOut, User, MessageSquare, LayoutGrid, Wallet, Gem, ShoppingCart, ShoppingBag, Trash2, Bookmark, ArrowRight, Search, Camera } from "lucide-react"
+import { Bell, Settings, LogOut, User, MessageSquare, LayoutGrid, Wallet, Gem, ShoppingCart, ShoppingBag, Trash2, Bookmark, ArrowRight, Search, Camera, CornerDownLeft } from "lucide-react"
 import { useAuth } from "@/contexts/auth-context"
 import { useEffect, useState } from "react"
 import { useLocation, Link, useNavigate, useParams } from "react-router-dom"
 import { useMessages } from "@/hooks/useMessages"
 import { useCart } from "@/contexts/cart-context"
+import { useSearch } from "@/hooks/useSearch"
+import { useGemsDialog } from "@/contexts/gems-dialog-context"
+import { useGemsBalance } from "@/contexts/gems-balance-context"
+import SearchDropdown from "@/components/homepage/SearchDropdown"
 import {
   Dialog,
   DialogContent,
@@ -30,27 +35,42 @@ import useUserData from "@/hooks/useUserData"
 import { CartItem } from "@/lib/types"
 import { supabase } from "@/lib/supabase"
 import { v4 as uuidv4 } from "uuid"
+import { UserNav } from '@/components/dashboard/layout/user-nav'
 
-export function SiteHeader() {
+interface SiteHeaderProps extends React.HTMLAttributes<HTMLElement> {}
+
+export function SiteHeader({ className, ...props }: SiteHeaderProps) {
   const { user, isLoading, signOut } = useAuth()
-  const [gemBalance, setGemBalance] = useState<number>(0)
+  const { state } = useSidebar()
+  const isSidebarCollapsed = state === "collapsed"
   const [walletBalance, setWalletBalance] = useState<number>(0)
   const [unreadMessages, setUnreadMessages] = useState<number>(0)
-  const [searchQuery, setSearchQuery] = useState<string>('')
+  const { openDialog } = useGemsDialog()
+  const { gemsBalance } = useGemsBalance()
+  const {
+    query: searchQuery,
+    setQuery: setSearchQuery,
+    suggestions,
+    isLoading: isSearchLoading,
+    isDropdownVisible,
+    showDropdown,
+    hideDropdown,
+  } = useSearch()
   const location = useLocation()
   const navigate = useNavigate()
-  // const { unreadCount } = useMessages(user?.id || '') // Temporarily commented out for debugging
-  const { cart, savedForLater, removeFromCart, saveForLater, moveToCart, loading: cartLoading, recentlyAddedId } = useCart()
-  const { ensureUserProfile, userStats } = useUserData()
-  const [showProfileDialog, setShowProfileDialog] = useState(false)
-  const [isUploading, setIsUploading] = useState(false)
-  const [uploadProgress, setUploadProgress] = useState(0)
-  const [userProfile, setUserProfile] = useState<{ avatarUrl?: string | null; bannerUrl?: string | null } | null>(null)
+  const { unreadCount } = useMessages(user?.id || '')
+  const { cart, savedForLater, removeFromCart, saveForLater, moveToCart, loading: cartLoading, recentlyAddedId } = useCart();
+  const { ensureUserProfile, userStats } = useUserData();
+  const [showProfileDialog, setShowProfileDialog] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [userProfile, setUserProfile] = useState<{ avatarUrl?: string | null; bannerUrl?: string | null } | null>(null);
   const [headerTitle, setHeaderTitle] = useState<string>('Discover'); // New state for header title
+  const [isInputFocused, setIsInputFocused] = useState(false);
 
   const getCurrentPageName = (path: string) => {
     if (path === '/') {
-      return 'Discover'
+      return 'Discover';
     }
     
     if (path.startsWith('/dashboard')) {
@@ -61,8 +81,8 @@ export function SiteHeader() {
       return 'Dashboard';
     }
 
-    const pathSegments = path.split('/')
-    const lastSegment = pathSegments[pathSegments.length - 1]
+    const pathSegments = path.split('/');
+    const lastSegment = pathSegments[pathSegments.length - 1];
     
     if (lastSegment === 'beats-instrumentals') {
       return 'Beat & Instrumentals';
@@ -71,18 +91,17 @@ export function SiteHeader() {
     if (!lastSegment) return 'Discover';
     
     return lastSegment.charAt(0).toUpperCase() + lastSegment.slice(1);
-  }
+  };
 
   useEffect(() => {
     if (user) {
-      ensureUserProfile(user)
+      ensureUserProfile(user);
     }
-  }, [user, ensureUserProfile])
+  }, [user, ensureUserProfile]);
 
   useEffect(() => {
     if (userStats) {
-      setGemBalance(userStats.gems || 0);
-      setWalletBalance(userStats.wallet_balance || 0); 
+      setWalletBalance(userStats.wallet_balance || 0);
       setUserProfile({
         avatarUrl: userStats.profile_url,
         bannerUrl: userStats.banner_url
@@ -91,12 +110,19 @@ export function SiteHeader() {
   }, [userStats]);
 
   useEffect(() => {
-    console.log('Cart state in header:', cart);
+    if (searchQuery && isInputFocused) {
+      showDropdown();
+    }
+  }, [searchQuery, isInputFocused, showDropdown]);
+
+  // Cart state monitoring - removed logging
+  useEffect(() => {
+    // Monitor cart state changes
   }, [cart]);
 
-  // useEffect(() => {
-  //   setUnreadMessages(unreadCount);
-  // }, [unreadCount]); // Temporarily commented out for debugging
+  useEffect(() => {
+    setUnreadMessages(unreadCount);
+  }, [unreadCount]);
 
   useEffect(() => {
     const path = location.pathname;
@@ -218,31 +244,55 @@ export function SiteHeader() {
   if (isLoading) return null
 
   return (
-    <header className="group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 group-has-data-[collapsible=icon]/sidebar-wrapper:left-[--sidebar-width-icon] group-has-data-[collapsible=icon]/sidebar-wrapper:w-[calc(100%-var(--sidebar-width-icon))] flex h-14 shrink-0 items-center gap-2 border-b transition-[width,height,left] ease-linear fixed top-0 pt-2 left-[--sidebar-width] w-[calc(100%-var(--sidebar-width))] z-50 pb-2.5 bg-background/80 backdrop-blur-md">
-      <div className="flex w-full items-center justify-between gap-1 px-4 lg:gap-2 lg:px-6">
-        <div className="flex items-center gap-4 flex-1">
+    <header className={`flex h-14 shrink-0 items-center gap-2 bg-background sticky top-0 z-30 ${className}`}>
+      <div className="flex w-full items-center gap-1 px-4 lg:gap-2 lg:px-6">
+        {/* Left side - Sidebar toggle and logo */}
+        <div className="flex items-center gap-4">
           <SidebarTrigger className="-ml-1" />
+          {isSidebarCollapsed && (
+            <Logo size="sm" showText={true} className="ml-2" />
+          )}
           <Separator
             orientation="vertical"
             className="mx-2 data-[orientation=vertical]:h-4"
           />
-          <h1 className="text-base font-medium">{headerTitle}</h1> {/* Use headerTitle here */}
-          <div className="relative ml-4 w-[800px]">
-            <Search className="absolute left-3 top-[50%] -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        </div>
+
+        {/* Center - Search Bar */}
+        <div className="flex-1 flex items-center justify-center ml-14 pl-12 mr-[-30px]">
+          <div
+            className="relative w-full max-w-2xl ml-8"
+          >
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              type="text"
-              placeholder="Search profiles and projects..."
-              className="pl-9 pr-3 h-8 rounded-md w-full"
+              placeholder="Search projects, producers, genres, instruments..."
+              className="pl-10 pr-20 py-4 text-base border-2 border-primary/20 focus:border-primary w-full"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              onFocus={() => setIsInputFocused(true)}
+              onBlur={() => setIsInputFocused(false)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && searchQuery.trim() !== '') {
-                  navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+                if (e.key === "Enter") {
+                  navigate(`/search?query=${searchQuery}`);
                 }
               }}
             />
+            <Button
+              className="absolute right-2 top-1/2 -translate-y-1/2 h-7 px-4 text-sm flex items-center gap-1"
+              onClick={() => navigate(`/search?q=${searchQuery}`)}
+            >
+              Search <CornerDownLeft className="h-3 w-3" />
+            </Button>
+            <SearchDropdown
+              suggestions={suggestions}
+              isDropdownVisible={isDropdownVisible}
+              setSearchQuery={setSearchQuery}
+              navigate={navigate}
+            />
           </div>
         </div>
+
+        {/* Right side - User controls */}
 
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
@@ -250,21 +300,25 @@ export function SiteHeader() {
               <Wallet className="h-4 w-4" />
               <span className="text-white">${walletBalance.toFixed(2)}</span>
             </Badge>
-            <Badge variant="default" className="flex items-center gap-2 bg-violet-500/10 text-violet-500 hover:bg-violet-500/20">
+            <Badge
+              variant="default"
+              className="flex items-center gap-2 bg-violet-500/10 text-violet-500 hover:bg-violet-500/20 cursor-pointer"
+              onClick={openDialog}
+            >
               <Gem className="h-4 w-4" />
-              <span className="text-white">{gemBalance}</span>
+              <span className="text-white">{gemsBalance}</span>
             </Badge>
           </div>
           {!user ? (
             <Button asChild variant="ghost" size="sm">
-              <a href="/auth/login">
+              <Link to="/auth/login">
                 Login
-              </a>
+              </Link>
             </Button>
           ) : (
             <>
             <Button asChild variant="ghost" size="sm">
-              <a href="/upload">Upload</a>
+              <Link to="/upload">Upload</Link>
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -277,172 +331,160 @@ export function SiteHeader() {
                     )}
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-96">
-                  <DropdownMenuLabel className="flex items-center justify-between font-semibold text-lg p-4">
-                    <span>Shopping Cart</span>
-                    {cart.length > 0 && (
-                      <Badge variant="secondary">{cart.length} item{cart.length !== 1 ? 's' : ''}</Badge>
-                    )}
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  {(cart.length === 0 && savedForLater.length === 0) ? (
-                    <div className="py-10 text-center text-sm text-muted-foreground">
-                      <ShoppingCart className="h-10 w-10 mx-auto mb-2 text-gray-300" />
-                      Your cart is empty
+                <DropdownMenuContent
+                  align="end"
+                  className="w-96 rounded-xl border border-border/50 bg-background/95 backdrop-blur-md shadow-xl"
+                  sideOffset={8}
+                >
+                  {/* Cart Header */}
+                  <div className="p-4 border-b border-border/30">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
+                          <ShoppingCart className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-foreground">Shopping Cart</span>
+                          </div>
+                          {cart.length > 0 && (
+                            <Badge variant="secondary" className="text-xs">{cart.length} item{cart.length !== 1 ? 's' : ''}</Badge>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  ) : (
-                    <>
-                      <div className="max-h-[300px] overflow-y-auto p-2">
-                        {cart.length > 0 && (
-                          <>
-                            {cart.map((item: CartItem) => (
-                              <div key={item.id} className={`flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 ${recentlyAddedId === item.id ? 'animate-flash' : ''}`}>
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2">
-                                    <p className="text-sm font-semibold truncate">{item.title}</p>
+                  </div>
+
+                  {/* Navigation Menu */}
+                  <div className="p-2">
+                    {(cart.length === 0 && savedForLater.length === 0) ? (
+                      <div className="py-10 text-center text-sm text-muted-foreground">
+                        <ShoppingCart className="h-10 w-10 mx-auto mb-2 text-gray-300" />
+                        Your cart is empty
+                      </div>
+                    ) : (
+                      <>
+                        <div className="max-h-[300px] overflow-y-auto p-2">
+                          {cart.length > 0 && (
+                            <>
+                              {cart.map((item: CartItem) => (
+                                  <div key={item.id} className={`group rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 hover:bg-accent/50 hover:text-accent-foreground focus:bg-accent/50 focus:text-accent-foreground cursor-pointer ${recentlyAddedId === item.id ? 'animate-flash' : ''}`}>
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2">
+                                          <p className="font-semibold truncate">{item.title}</p>
+                                          {item.project_id && !item.track_id && (
+                                            <Badge variant="secondary" className="text-xs">Project</Badge>
+                                          )}
+                                          {item.track_id && (
+                                            <Badge variant="outline" className="text-xs">
+                                              {item.selected_file_types && item.selected_file_types.length > 0 ?
+                                                item.selected_file_types.map(type => type.toUpperCase()).join(' + ') :
+                                                'Track'}
+                                            </Badge>
+                                          )}
+                                        </div>
+                                        <div className="text-xs text-muted-foreground">
+                                          <span>by {item.producer_name}</span>
+                                          {item.project_id && item.track_count !== undefined && (
+                                            <>
+                                              <span className="mx-1">•</span>
+                                              <span>{item.track_count} track{item.track_count !== 1 ? 's' : ''}</span>
+                                            </>
+                                          )}
+                                        </div>
+                                        <div className="flex flex-wrap gap-1 mt-1">
+                                          {item.tags?.slice(0, 2).map((tag: string) => (
+                                            <Badge key={tag} variant="outline" className="text-xs">{tag}</Badge>
+                                          ))}
+                                        </div>
+                                      </div>
+                                      <div className="text-right">
+                                        <p className="font-bold">${(item.price || 0).toFixed(2)}</p>
+                                        <div className="flex items-center gap-1 mt-2">
+                                          <Button variant="ghost" size="icon" className="h-7 w-7 group-hover:text-accent-foreground transition-colors" onClick={() => saveForLater(item.id)}>
+                                            <Bookmark className="h-4 w-4" />
+                                          </Button>
+                                          <Button variant="ghost" size="icon" className="h-7 w-7 group-hover:text-accent-foreground transition-colors" onClick={() => removeFromCart(item.id)}>
+                                            <Trash2 className="h-4 w-4" />
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    </div>
                                   </div>
-                                  <div className="text-xs text-muted-foreground">
-                                    <span>by {item.producer_name}</span>
-                                    {item.project_id && item.track_count !== undefined && (
-                                      <>
-                                        <span className="mx-1">•</span>
-                                        <span>{item.track_count} track{item.track_count !== 1 ? 's' : ''}</span>
-                                      </>
-                                    )}
-                                  </div>
-                                  <div className="flex flex-wrap gap-1 mt-1">
-                                    {item.tags?.slice(0, 2).map((tag: string) => (
-                                      <Badge key={tag} variant="outline" className="text-xs">{tag}</Badge>
-                                    ))}
-                                  </div>
-                                </div>
-                                <div className="text-right">
-                                  <p className="text-sm font-bold">${(item.price || 0).toFixed(2)}</p>
-                                  <div className="flex items-center gap-1 mt-2">
-                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => saveForLater(item.id)}>
-                                      <Bookmark className="h-4 w-4" />
-                                    </Button>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeFromCart(item.id)}>
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                </div>
+                              ))}
+                            </>
+                          )}
+                          {savedForLater.length > 0 && (
+                            <>
+                              <DropdownMenuSeparator className="my-2 bg-border/30" />
+                              <div className="p-2">
+                                <h3 className="text-sm font-semibold text-muted-foreground">Saved for Later ({savedForLater.length})</h3>
                               </div>
-                            ))}
-                          </>
-                        )}
-                        {savedForLater.length > 0 && (
-                          <>
-                            <DropdownMenuSeparator />
-                            <div className="p-2">
-                              <h3 className="text-sm font-semibold text-muted-foreground">Saved for Later ({savedForLater.length})</h3>
-                            </div>
-                            {savedForLater.map((item: CartItem) => (
-                               <div key={item.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50">
-                                 <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2">
-                                      <p className="text-sm font-semibold truncate">{item.title}</p>
-                                    </div>
-                                    <div className="text-xs text-muted-foreground">
-                                      <span>by {item.producer_name}</span>
-                                      {item.project_id && item.track_count !== undefined && (
-                                        <>
-                                          <span className="mx-1">•</span>
-                                          <span>{item.track_count} track{item.track_count !== 1 ? 's' : ''}</span>
-                                        </>
-                                      )}
-                                    </div>
-                                 </div>
-                                 <div className="text-right">
-                                   <p className="text-sm font-bold">${(item.price || 0).toFixed(2)}</p>
-                                   <div className="flex items-center gap-1 mt-2">
-                                     <Button variant="outline" size="sm" className="h-7" onClick={() => moveToCart(item.id)}>
-                                       Move to cart
-                                     </Button>
-                                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeFromCart(item.id)}>
-                                       <Trash2 className="h-4 w-4" />
-                                     </Button>
+                              {savedForLater.map((item: CartItem) => (
+                                 <div key={item.id} className="group rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 hover:bg-accent/50 hover:text-accent-foreground focus:bg-accent/50 focus:text-accent-foreground cursor-pointer">
+                                   <div className="flex items-center justify-between">
+                                     <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2">
+                                          <p className="font-semibold truncate">{item.title}</p>
+                                          {item.project_id && !item.track_id && (
+                                            <Badge variant="secondary" className="text-xs">Project</Badge>
+                                          )}
+                                          {item.track_id && (
+                                            <Badge variant="outline" className="text-xs">
+                                              {item.selected_file_types && item.selected_file_types.length > 0 ?
+                                                item.selected_file_types.map(type => type.toUpperCase()).join(' + ') :
+                                                'Track'}
+                                            </Badge>
+                                          )}
+                                        </div>
+                                        <div className="text-xs text-muted-foreground">
+                                          <span>by {item.producer_name}</span>
+                                          {item.project_id && item.track_count !== undefined && (
+                                            <>
+                                              <span className="mx-1">•</span>
+                                              <span>{item.track_count} track{item.track_count !== 1 ? 's' : ''}</span>
+                                            </>
+                                          )}
+                                        </div>
+                                     </div>
+                                     <div className="text-right">
+                                       <p className="font-bold">${(item.price || 0).toFixed(2)}</p>
+                                       <div className="flex items-center gap-1 mt-2">
+                                         <Button variant="outline" size="sm" className="h-7" onClick={() => moveToCart(item.id)}>
+                                           Move to cart
+                                         </Button>
+                                         <Button variant="ghost" size="icon" className="h-7 w-7 group-hover:text-accent-foreground transition-colors" onClick={() => removeFromCart(item.id)}>
+                                           <Trash2 className="h-4 w-4" />
+                                         </Button>
+                                       </div>
+                                     </div>
                                    </div>
                                  </div>
-                               </div>
-                            ))}
-                          </>
-                        )}
-                      </div>
-                      <DropdownMenuSeparator />
-                      <div className="p-4 bg-muted/50">
-                        <div className="flex justify-between items-center mb-4">
-                          <span className="text-base font-semibold">Subtotal</span>
-                          <span className="text-xl font-bold">${subtotal.toFixed(2)}</span>
+                              ))}
+                            </>
+                          )}
                         </div>
-                        <Button 
-                          className="w-full h-11 text-base font-bold" 
-                          onClick={handleCheckout}
-                          disabled={cart.length === 0}
-                        >
-                          Proceed to Checkout <ArrowRight className="ml-2 h-5 w-5" />
-                        </Button>
-                      </div>
-                    </>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Avatar className="h-8 w-8 bg-gray-300 cursor-pointer" onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setShowProfileDialog(true);
-                  }}>
-                    {userProfile?.avatarUrl ? (
-                      <AvatarImage src={userProfile.avatarUrl} alt="Profile" />
-                    ) : (
-                      <AvatarFallback className="bg-gray-300" />
+                        <DropdownMenuSeparator className="my-2 bg-border/30" />
+                        <div className="p-4 bg-muted/50">
+                          <div className="flex justify-between items-center mb-4">
+                            <span className="text-base font-semibold">Subtotal</span>
+                            <span className="text-xl font-bold">${subtotal.toFixed(2)}</span>
+                          </div>
+                          <Button
+                            className="w-full h-11 text-base font-bold"
+                            onClick={handleCheckout}
+                            disabled={cart.length === 0}
+                          >
+                            Proceed to Checkout <ArrowRight className="ml-2 h-5 w-5" />
+                          </Button>
+                        </div>
+                      </>
                     )}
-                  </Avatar>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link to={`/user/${user?.user_metadata?.username || 'profile'}`}>
-                      <User className="mr-2 h-4 w-4" />
-                      Profile
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/user/dashboard">
-                      <LayoutGrid className="mr-2 h-4 w-4" />
-                      Dashboard
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/messages">
-                      <MessageSquare className="mr-2 h-4 w-4" />
-                      Messages
-                      {/* Temporarily commented out for debugging
-                      {unreadMessages > 0 && (
-                        <Badge variant="secondary" className="ml-auto">{unreadMessages}</Badge>
-                      )} */}
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/orders/history">
-                      <ShoppingBag className="mr-2 h-4 w-4" />
-                      Purchases
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <Settings className="mr-2 h-4 w-4" />
-                    Settings
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={signOut}>
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Log out
-                  </DropdownMenuItem>
+                  </div>
                 </DropdownMenuContent>
               </DropdownMenu>
+              <UserNav />
             </>
           )}
         </div>

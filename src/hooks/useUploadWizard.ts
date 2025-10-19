@@ -19,16 +19,19 @@ export function useUploadWizard() {
   const [showNewFolderDialog, setShowNewFolderDialog] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [currentFolder, setCurrentFolder] = useState<string | null>(null);
+  const [currentFolderName, setCurrentFolderName] = useState<string | null>(null);
+  const [currentFolderPath, setCurrentFolderPath] = useState<any[]>([]);
   const [folders, setFolders] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [sortOrder, setSortOrder] = useState<'name' | 'date' | 'size'>('date');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [draggedFile, setDraggedFile] = useState<string | null>(null);
+  const [draggedFolder, setDraggedFolder] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
   const [dragCounter, setDragCounter] = useState(0);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [deleteItemType, setDeleteItemType] = useState<'file' | 'folder' | null>(null);
+  const [deleteItemType, setDeleteItemType] = useState<'file' | 'folder' | 'selected' | null>(null);
   const [deleteItemId, setDeleteItemId] = useState<string | null>(null);
   const [deleteItemPath, setDeleteItemPath] = useState<string | null>(null);
   const [deleteItemName, setDeleteItemName] = useState('');
@@ -68,12 +71,50 @@ export function useUploadWizard() {
     }
   }, [user, currentFolder]);
 
+  const fetchCurrentFolderName = useCallback(async () => {
+    if (!user || !currentFolder) {
+      setCurrentFolderName(null);
+      setCurrentFolderPath([]);
+      return;
+    }
+    try {
+      // Build the path by traversing up from current folder
+      const path: any[] = [];
+      let folderId = currentFolder;
+
+      while (folderId) {
+        const { data, error } = await supabase
+          .from('folders')
+          .select('id, name, parent_id')
+          .eq('id', folderId)
+          .eq('user_id', user.id)
+          .single();
+
+        if (error) throw error;
+        if (data) {
+          path.unshift(data); // Add to beginning to maintain root-to-current order
+          folderId = data.parent_id;
+        } else {
+          break;
+        }
+      }
+
+      setCurrentFolderName(path.length > 0 ? path[path.length - 1].name : null);
+      setCurrentFolderPath(path);
+    } catch (error: unknown) {
+      console.error('Error fetching current folder name:', error);
+      setCurrentFolderName(null);
+      setCurrentFolderPath([]);
+    }
+  }, [user, currentFolder]);
+
   useEffect(() => {
     if (user) {
       fetchFiles();
       fetchFolders();
+      fetchCurrentFolderName();
     }
-  }, [user, currentFolder, fetchFiles, fetchFolders]);
+  }, [user, currentFolder, fetchFiles, fetchFolders, fetchCurrentFolderName]);
 
   const handleRefresh = useCallback(async () => {
     if (!user) return;
@@ -83,7 +124,7 @@ export function useUploadWizard() {
     toast.success("Files and folders refreshed.");
   }, [user, fetchFiles, fetchFolders]);
 
-  const handleUpload = async (filesToUpload: File[]) => {
+  const handleUpload = async (filesToUpload: File[], targetFolderId?: string) => {
     if (!user) {
       toast.error('You must be logged in to upload files');
       return;
@@ -107,6 +148,26 @@ export function useUploadWizard() {
           .upload(filePath, file, { cacheControl: '3600', upsert: true, contentType: file.type });
         if (storageError) throw storageError;
         const { data: { publicUrl } } = supabase.storage.from('audio_files').getPublicUrl(filePath);
+
+        // Calculate duration for audio files
+        let durationSeconds = null;
+        if (file.type.startsWith('audio/')) {
+          try {
+            const audio = new Audio();
+            audio.src = URL.createObjectURL(file);
+            await new Promise<void>((resolve, reject) => {
+              audio.onloadedmetadata = () => {
+                durationSeconds = Math.round(audio.duration);
+                resolve();
+              };
+              audio.onerror = () => reject(new Error('Failed to load audio metadata'));
+            });
+          } catch (error) {
+            console.warn(`Failed to calculate duration for ${file.name}:`, error);
+            // Continue without duration if calculation fails
+          }
+        }
+
         const fileData: Record<string, any> = {
           id: fileId,
           name: file.name,
@@ -114,17 +175,21 @@ export function useUploadWizard() {
           file_path: filePath,
           size: file.size,
           file_type: getFileType(file.type),
-          user_id: user.id
+          user_id: user.id,
+          duration_seconds: durationSeconds
         };
-        if (currentFolder) {
-          fileData.folder_id = currentFolder;
+        // Use targetFolderId if provided, otherwise use currentFolder
+        const folderId = targetFolderId || currentFolder;
+        if (folderId) {
+          fileData.folder_id = folderId;
         }
         const { error: dbError } = await supabase.from('files').insert([fileData]);
         if (dbError) throw dbError;
         setUploadProgress(Math.round(((i + 1) / filesToUpload.length) * 100));
       }
       setUploadProgress(100);
-      toast.success(`${filesToUpload.length} file${filesToUpload.length > 1 ? 's' : ''} uploaded successfully`);
+      const folderName = targetFolderId ? folders.find(f => f.id === targetFolderId)?.name || 'folder' : 'current folder';
+      toast.success(`${filesToUpload.length} file${filesToUpload.length > 1 ? 's' : ''} uploaded to ${folderName} successfully`);
       setFiles([]);
       fetchFiles();
       fetchFolders();
@@ -180,20 +245,53 @@ export function useUploadWizard() {
 
   const deleteFolder = async (id: string, folderName: string) => {
     try {
-      const { data: folderFiles, error: filesError } = await supabase.from('files').select('id, file_path').eq('folder_id', id);
-      if (filesError) throw filesError;
-      if (folderFiles && folderFiles.length > 0) {
-        const filePaths = folderFiles.map(file => file.file_path).filter(Boolean);
+      // Recursive function to collect all subfolders and files
+      const collectAllFoldersAndFiles = async (folderId: string): Promise<{ folders: string[], files: { id: string, file_path: string | null }[] }> => {
+        const result = { folders: [folderId], files: [] as { id: string, file_path: string | null }[] };
+
+        // Get direct files in this folder
+        const { data: folderFiles, error: filesError } = await supabase.from('files').select('id, file_path').eq('folder_id', folderId);
+        if (filesError) throw filesError;
+        if (folderFiles) {
+          result.files.push(...folderFiles);
+        }
+
+        // Get subfolders and recursively collect their contents
+        const { data: subfolders, error: subfoldersError } = await supabase.from('folders').select('id').eq('parent_id', folderId);
+        if (subfoldersError) throw subfoldersError;
+        if (subfolders) {
+          for (const subfolder of subfolders) {
+            const subResult = await collectAllFoldersAndFiles(subfolder.id);
+            result.folders.push(...subResult.folders);
+            result.files.push(...subResult.files);
+          }
+        }
+
+        return result;
+      };
+
+      // Collect all folders and files to delete
+      const { folders: foldersToDelete, files: filesToDelete } = await collectAllFoldersAndFiles(id);
+
+      // Delete all files from storage
+      if (filesToDelete.length > 0) {
+        const filePaths = filesToDelete.map(file => file.file_path).filter((path): path is string => path !== null);
         if (filePaths.length > 0) {
           const { error: storageError } = await supabase.storage.from('audio_files').remove(filePaths);
           if (storageError) throw storageError;
         }
-        const { error: dbFilesError } = await supabase.from('files').delete().eq('folder_id', id);
+        // Delete all files from database
+        const { error: dbFilesError } = await supabase.from('files').delete().in('id', filesToDelete.map(f => f.id));
         if (dbFilesError) throw dbFilesError;
       }
-      const { error: folderError } = await supabase.from('folders').delete().eq('id', id);
-      if (folderError) throw folderError;
-      toast.success('Folder deleted successfully');
+
+      // Delete all folders from database (in reverse order to handle parent-child relationships)
+      for (const folderId of foldersToDelete.reverse()) {
+        const { error: folderError } = await supabase.from('folders').delete().eq('id', folderId);
+        if (folderError) throw folderError;
+      }
+
+      toast.success('Folder and all contents deleted successfully');
       fetchFolders();
       triggerStorageUpdate();
     } catch (error: unknown) {
@@ -202,6 +300,11 @@ export function useUploadWizard() {
   };
 
   const handleDeleteFile = (id: string, filePath: string | null, fileName: string) => {
+    // If multiple items are selected, delete all selected items instead
+    if (selectedItems.length > 1) {
+      handleDeleteSelected();
+      return;
+    }
     setDeleteItemType('file');
     setDeleteItemId(id);
     setDeleteItemPath(filePath);
@@ -216,6 +319,11 @@ export function useUploadWizard() {
   };
 
   const handleDeleteFolder = (id: string, folderName: string) => {
+    // If multiple items are selected, delete all selected items instead
+    if (selectedItems.length > 1) {
+      handleDeleteSelected();
+      return;
+    }
     setDeleteItemType('folder');
     setDeleteItemId(id);
     setDeleteItemName(folderName);
@@ -324,28 +432,67 @@ export function useUploadWizard() {
       toast.error("No items selected for deletion.");
       return;
     }
-    const firstItem = selectedItems[0];
-    const file = uploadedFiles.find(f => f.id === firstItem);
-    const folder = folders.find(f => f.id === firstItem);
-    if (file) {
-      handleDeleteFile(file.id, file.file_path, file.name);
-    } else if (folder) {
-      handleDeleteFolder(folder.id, folder.name);
-    }
+    setDeleteItemType('selected');
+    setDeleteItemId(null); // Not used for selected items
+    setDeleteItemName(`${selectedItems.length} selected item${selectedItems.length > 1 ? 's' : ''}`);
+    setShowDeleteDialog(true);
   };
 
   const confirmDeleteSelected = async () => {
     if (!user) return;
     setShowDeleteDialog(false);
-    for (const itemId of selectedItems) {
-      const file = uploadedFiles.find(f => f.id === itemId);
-      const folder = folders.find(f => f.id === itemId);
+
+    // Separate files and folders
+    const selectedFiles = selectedItems.filter(itemId => uploadedFiles.some(f => f.id === itemId));
+    const selectedFolders = selectedItems.filter(itemId => folders.some(f => f.id === itemId));
+
+    // Function to check if a folder is a descendant of another folder
+    const isDescendantOf = async (folderId: string, potentialAncestorId: string): Promise<boolean> => {
+      let currentId = folderId;
+      while (currentId) {
+        const { data: folder, error } = await supabase
+          .from('folders')
+          .select('parent_id')
+          .eq('id', currentId)
+          .eq('user_id', user.id)
+          .single();
+
+        if (error) return false;
+        if (folder.parent_id === potentialAncestorId) return true;
+        currentId = folder.parent_id;
+      }
+      return false;
+    };
+
+    // Filter out folders that are descendants of other selected folders
+    const foldersToDelete: string[] = [];
+    for (const folderId of selectedFolders) {
+      const isDescendant = await Promise.all(
+        selectedFolders
+          .filter(id => id !== folderId)
+          .map(ancestorId => isDescendantOf(folderId, ancestorId))
+      );
+      if (!isDescendant.some(Boolean)) {
+        foldersToDelete.push(folderId);
+      }
+    }
+
+    // Delete files
+    for (const fileId of selectedFiles) {
+      const file = uploadedFiles.find(f => f.id === fileId);
       if (file) {
         await deleteFile(file.id, file.file_path || '', file.name);
-      } else if (folder) {
+      }
+    }
+
+    // Delete folders (only top-level ones)
+    for (const folderId of foldersToDelete) {
+      const folder = folders.find(f => f.id === folderId);
+      if (folder) {
         await deleteFolder(folder.id, folder.name);
       }
     }
+
     setSelectedItems([]);
     toast.success("Selected items deleted.");
     fetchFiles();
@@ -364,6 +511,8 @@ export function useUploadWizard() {
     setShowNewFolderDialog,
     uploadedFiles,
     currentFolder,
+    currentFolderName,
+    currentFolderPath,
     setCurrentFolder,
     folders,
     isLoading,
@@ -371,6 +520,8 @@ export function useUploadWizard() {
     sortDirection,
     draggedFile,
     setDraggedFile,
+    draggedFolder,
+    setDraggedFolder,
     dropTarget,
     setDropTarget,
     dragCounter,

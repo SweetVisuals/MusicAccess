@@ -15,7 +15,7 @@ export default function useUserData() {
   const { lastUpdated } = useStorage();
 
   const [storageUsed, setStorageUsed] = useState(0);
-  const [storageLimit, setStorageLimit] = useState(1024 * 1024 * 1024); // 1GB
+  const [storageLimit, setStorageLimit] = useState(500 * 1024 * 1024); // 500MB
   const [loadingStorage, setLoadingStorage] = useState(false);
   const [errorStorage, setErrorStorage] = useState<string | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);

@@ -1,0 +1,375 @@
+'use client'
+
+import React, { useState, useMemo, useCallback, useEffect } from 'react'
+import { createEditor, Descendant, Editor, Transforms, Text, Range, BaseEditor, Element, NodeEntry, Node } from 'slate'
+import { Slate, Editable, withReact, ReactEditor } from 'slate-react'
+import { withHistory, HistoryEditor } from 'slate-history'
+import { Bold, Italic, Underline, List, ListOrdered, Quote, Link, Undo, Redo, Sparkles } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Switch } from "@/components/ui/switch";
+import { useRhymeHighlight } from '@/contexts/rhyme-highlight-context'
+import { cn } from '@/lib/utils'
+import {
+  groupRhymes,
+  getRhymeSuggestions,
+  getRhymeSuggestionsSync,
+  generateRhymeColor,
+} from '@/lib/rhyme-utils'
+import { debounce } from 'lodash'
+
+// Define custom types for Slate
+type CustomElement = { type: 'paragraph'; children: CustomText[] }
+type CustomText = { text: string; bold?: true; italic?: true; underline?: true; highlight?: string }
+
+type DecoratedRange = Range & { highlight: string };
+
+declare module 'slate' {
+  interface CustomTypes {
+    Editor: BaseEditor & ReactEditor & HistoryEditor
+    Element: CustomElement
+    Text: CustomText
+  }
+}
+
+const initialValue: Descendant[] = [
+  {
+    type: 'paragraph',
+    children: [{ text: '' }],
+  },
+]
+
+// Helper function to get plain text from Slate value
+const toPlainText = (nodes: Descendant[]): string => {
+  return nodes
+    .map(n => {
+      if (Element.isElement(n)) {
+        return toPlainText(n.children)
+      }
+      return n.text
+    })
+    .join('\n')
+}
+
+// Helper function to get all words from the editor
+const getWordsFromValue = (value: Descendant[]): { word: string, start: number, end: number }[] => {
+    const words: { word: string, start: number, end: number }[] = [];
+    let offset = 0;
+
+    const recursiveExtract = (nodes: Descendant[]) => {
+        nodes.forEach(node => {
+            if (Element.isElement(node)) {
+                recursiveExtract(node.children);
+                offset++; // Account for newlines between paragraphs
+            } else if (Text.isText(node)) {
+                const text = node.text;
+                const regex = /[a-zA-Z']+/g;
+                let match;
+                while ((match = regex.exec(text)) !== null) {
+                    const start = offset + match.index;
+                    const end = start + match[0].length;
+                    words.push({
+                        word: match[0],
+                        start,
+                        end,
+                    });
+                }
+                offset += text.length;
+            }
+        });
+    };
+
+    recursiveExtract(value);
+    return words;
+}
+
+export function SimpleTextEditor({
+  value,
+  onChange,
+  placeholder = "Write your notes here...",
+  className = ""
+}: {
+  value: string
+  onChange: (value: string) => void
+  placeholder?: string
+  className?: string
+}) {
+  const editor = useMemo(() => withHistory(withReact(createEditor())), [])
+  const [rhymeGroups, setRhymeGroups] = useState<Map<string, string>>(new Map());
+  const [isFocused, setIsFocused] = useState(false);
+  const { rhymeHighlightEnabled, setRhymeHighlightEnabled } = useRhymeHighlight();
+  const [currentWord, setCurrentWord] = useState('');
+  const [rhymeSuggestions, setRhymeSuggestions] = useState<string[]>([]);
+  const [isLoadingRhymes, setIsLoadingRhymes] = useState(false);
+  const [editorValue, setEditorValue] = useState<Descendant[]>(initialValue);
+
+  // Function to update rhyme groups (not debounced)
+  const updateRhymesLogic = useCallback(
+    async (currentEditorValue: Descendant[], enabled: boolean) => {
+      if (!enabled) {
+        if (rhymeGroups.size > 0) setRhymeGroups(new Map());
+        return;
+      }
+      const wordInfos = getWordsFromValue(currentEditorValue);
+      const grouped = await groupRhymes(wordInfos);
+      const newRhymeMap = new Map<string, string>();
+
+      if (grouped) {
+        grouped.forEach((group, index) => {
+          const color = generateRhymeColor(index);
+          group.words.forEach(word => {
+            newRhymeMap.set(word.toLowerCase(), color);
+          });
+        });
+      }
+
+      if (enabled) {
+        setRhymeGroups(newRhymeMap);
+      }
+    },
+    [rhymeGroups.size]
+  );
+
+  // Debounced version of the rhyme update logic
+  const debouncedUpdateRhymes = useMemo(
+    () => debounce((val: Descendant[], enabled: boolean) => updateRhymesLogic(val, enabled), 300),
+    [updateRhymesLogic]
+  );
+
+  // Effect to handle incoming `value` changes from props
+  useEffect(() => {
+    const currentEditorText = toPlainText(editor.children);
+    if (value !== currentEditorText) {
+      // The external value has changed, so we need to update the editor.
+      // This typically happens on initial load or when the note is changed externally.
+      const incomingValue: Descendant[] = value
+        ? value.split('\n').map(line => ({ type: 'paragraph', children: [{ text: line }] }))
+        : initialValue;
+
+      // Use a separate transaction for updating the editor to avoid race conditions
+      Editor.withoutNormalizing(editor, () => {
+        const point = Editor.end(editor, []);
+        Transforms.select(editor, point);
+        editor.children = incomingValue;
+        setEditorValue(incomingValue);
+        Editor.normalize(editor, { force: true });
+      });
+
+      // The useEffect that depends on editorValue will trigger the rhyme update.
+      // No need to explicitly call it here.
+
+      // After an external update, it's often best to move the selection to the end.
+      if (editor.selection) {
+        Transforms.select(editor, Editor.end(editor, []));
+      }
+    }
+  }, [value, editor]);
+
+  // Effect for handling rhyme highlighting
+  useEffect(() => {
+    // This effect is now dedicated to triggering rhyme updates when the content changes
+    // or the highlight feature is toggled.
+    debouncedUpdateRhymes(editor.children, rhymeHighlightEnabled);
+
+    return () => {
+      debouncedUpdateRhymes.cancel();
+    };
+  }, [editorValue, rhymeHighlightEnabled, debouncedUpdateRhymes]);
+
+  // This useEffect ensures rhymeGroups are cleared immediately when highlighting is disabled
+  useEffect(() => {
+    if (!rhymeHighlightEnabled) {
+      setRhymeGroups(new Map());
+    }
+  }, [rhymeHighlightEnabled]);
+
+  const Leaf = useCallback(({ attributes, children, leaf }: { attributes: any, children: any, leaf: CustomText }) => {
+    if (leaf.bold) children = <strong>{children}</strong>
+    if (leaf.italic) children = <em>{children}</em>
+    if (leaf.underline) children = <u>{children}</u>
+    if (leaf.highlight) {
+      children = <mark style={{ backgroundColor: leaf.highlight, color: 'inherit', padding: '2px', borderRadius: '3px' }}>{children}</mark>
+    }
+    return <span {...attributes}>{children}</span>
+  }, []);
+
+  const decorate = useCallback((entry: NodeEntry): DecoratedRange[] => {
+    const [node, path] = entry;
+    const ranges: DecoratedRange[] = [];
+
+    if (!Text.isText(node) || !rhymeHighlightEnabled) {
+      return ranges;
+    }
+
+    const text = node.text;
+    const regex = /[a-zA-Z']+/g;
+    let match;
+    let offset = 0;
+
+    while ((match = regex.exec(text)) !== null) {
+      const word = match[0];
+      const start = match.index;
+      const end = start + word.length;
+      const cleanedWord = word.toLowerCase();
+      const color = rhymeGroups.get(cleanedWord);
+
+      if (color) {
+        ranges.push({
+          anchor: { path, offset: start },
+          focus: { path, offset: end },
+          highlight: color,
+        });
+      }
+    }
+
+    return ranges;
+  }, [rhymeGroups, rhymeHighlightEnabled]); // Removed 'version' from dependencies
+
+  // Removed setVersion calls from updateRhymesLogic as it's no longer needed for decorate
+  // The updateRhymesLogic itself will still trigger re-renders via setRhymeGroups
+
+  const handleValueChange = useCallback((newValue: Descendant[]) => {
+    setEditorValue(newValue); // Keep internal state in sync
+
+    const isAstChange = editor.operations.some(
+      op => op.type !== 'set_selection'
+    );
+    if (isAstChange) {
+      const plainText = toPlainText(newValue);
+      onChange(plainText);
+      // Removed direct call to debouncedUpdateRhymes();
+      const { selection } = editor;
+      if (selection && Range.isCollapsed(selection)) {
+          const [start] = Range.edges(selection);
+          const wordBefore = Editor.string(editor, { anchor: Editor.before(editor, start, { unit: 'word' }) || start, focus: start });
+          const wordAfter = Editor.string(editor, { anchor: start, focus: Editor.after(editor, start, { unit: 'word' }) || start });
+          setCurrentWord((wordBefore + wordAfter).trim());
+      }
+    }
+  }, [editor, onChange]); // Removed debouncedUpdateRhymes from dependencies as it's not called directly
+  
+  useEffect(() => {
+    if (currentWord.trim().length > 1) {
+      const allWordInfos = getWordsFromValue(editor.children);
+      const allWords = allWordInfos.map(info => info.word);
+      const syncSuggestions = getRhymeSuggestionsSync(currentWord, allWords);
+      setRhymeSuggestions(syncSuggestions);
+      
+      setIsLoadingRhymes(true);
+      getRhymeSuggestions(currentWord, allWords)
+        .then(suggestions => setRhymeSuggestions(suggestions))
+        .finally(() => setIsLoadingRhymes(false));
+    } else {
+      setRhymeSuggestions([]);
+    }
+  }, [currentWord, editor.children]);
+
+  const isMarkActive = (format: keyof Omit<CustomText, 'text' | 'highlight'>) => {
+    if (!editor.selection) return false; // Add this check
+    const marks = Editor.marks(editor);
+    return marks ? marks[format] === true : false;
+  };
+
+  const toggleMark = (format: keyof Omit<CustomText, 'text' | 'highlight'>) => {
+    const isActive = isMarkActive(format);
+    if (isActive) {
+      Editor.removeMark(editor, format);
+    } else {
+      Editor.addMark(editor, format, true);
+    }
+  };
+
+  const ToolbarButton = ({ icon: Icon, onMouseDown, title, active }: { icon: React.ComponentType<any>, onMouseDown: (e: React.MouseEvent) => void, title: string, active?: boolean }) => (
+    <Button
+      variant="ghost"
+      size="sm"
+      onMouseDown={onMouseDown}
+      className={cn("h-8 w-8 p-0", { 'bg-muted': active })}
+      title={title}
+    >
+      <Icon className="h-4 w-4" />
+    </Button>
+  );
+
+  return (
+    <div className={cn("border border-border rounded-md transition-all duration-300 hover:shadow-md flex flex-col h-full", className, {
+      "ring-2 ring-primary ring-offset-2": isFocused,
+      "border-primary shadow-lg": isFocused
+    })}>
+      <Slate editor={editor} initialValue={editorValue} onChange={handleValueChange}>
+        <div className="flex items-center gap-1 p-2 border-b border-border bg-muted/50 rounded-t-md">
+          <ToolbarButton icon={Bold} active={isMarkActive('bold')} title="Bold" onMouseDown={e => { e.preventDefault(); toggleMark('bold'); }} />
+          <ToolbarButton icon={Italic} active={isMarkActive('italic')} title="Italic" onMouseDown={e => { e.preventDefault(); toggleMark('italic'); }} />
+          <ToolbarButton icon={Underline} active={isMarkActive('underline')} title="Underline" onMouseDown={e => { e.preventDefault(); toggleMark('underline'); }} />
+          <div className="flex-1" />
+          <div className="flex items-center space-x-2">
+            <Sparkles className="h-4 w-4" />
+            <Switch
+              id="rhyme-highlight-toggle"
+              checked={rhymeHighlightEnabled}
+              onCheckedChange={setRhymeHighlightEnabled}
+            />
+          </div>
+          <ToolbarButton icon={Undo} title="Undo" onMouseDown={e => { e.preventDefault(); editor.undo(); }} />
+          <ToolbarButton icon={Redo} title="Redo" onMouseDown={e => { e.preventDefault(); editor.redo(); }} />
+        </div>
+        <div className="relative flex-grow flex flex-col overflow-y-auto sidebar-scrollbar h-full">
+          <div className="flex flex-1 h-full">
+            <div className="w-12 text-right pr-2 text-muted-foreground select-none font-mono" style={{ paddingTop: '1rem', paddingBottom: '1rem' }}>
+              {editor && editor.children && editor.children.map((_, index) => (
+                <div key={index} className="h-[24px]">{index + 1}</div>
+              ))}
+            </div>
+            <Editable
+              renderLeaf={Leaf}
+              decorate={decorate}
+              placeholder={placeholder}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
+              className="p-4 outline-none font-sans leading-relaxed text-foreground bg-background w-full flex-1"
+              onKeyDown={event => {
+                if (event.key === 'Enter') {
+                  // We are not preventing default behavior, just letting Slate handle it.
+                }
+              }}
+            />
+          </div>
+        </div>
+      </Slate>
+      {rhymeSuggestions.length > 0 && currentWord && (
+        <div className="border-t border-border p-3 bg-muted/30">
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="text-sm font-medium text-muted-foreground">
+              Rhyme Suggestions for "{currentWord}"
+              {isLoadingRhymes && <span className="ml-2 animate-spin rounded-full h-3 w-3 border-b-2 border-primary" />}
+            </h4>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {rhymeSuggestions.map((suggestion, index) => (
+              <Badge
+                key={index}
+                variant="secondary"
+                className="cursor-pointer hover:bg-primary/20 hover:text-primary transition-colors"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  // This part needs adjustment for Slate
+                   if (editor.selection) {
+                        const { selection } = editor
+                        const [start] = Range.edges(selection!)
+                        const wordBefore = Editor.string(editor, { anchor: Editor.before(editor, start, { unit: 'word' }) || start, focus: start });
+                        const anchor = Editor.before(editor, start, {unit: 'word'}) || start;
+                        Transforms.select(editor, { anchor, focus: start });
+                        Transforms.insertText(editor, suggestion + ' ');
+                   }
+                  setCurrentWord('');
+                }}
+              >
+                {suggestion}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

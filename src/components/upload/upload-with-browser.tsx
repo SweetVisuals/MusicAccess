@@ -59,9 +59,10 @@ interface UnifiedFileBrowserProps {
   onRefresh?: () => void;
   onDownloadSelected?: () => void;
   onDeleteSelected?: () => void;
+  onFileDoubleClick?: (file: FileItem) => void;
 }
 
-export function UnifiedFileBrowser({ 
+export function UnifiedFileBrowser({
   initialFiles,
   files: propFiles,
   folders: propFolders,
@@ -70,7 +71,8 @@ export function UnifiedFileBrowser({
   uploadFile: propUploadFile,
   onRefresh,
   onDownloadSelected,
-  onDeleteSelected
+  onDeleteSelected,
+  onFileDoubleClick
 }: UnifiedFileBrowserProps) {
   const { user } = useAuth();
   const [files, setFiles] = useState<FileItem[]>(propFiles || initialFiles || []);
@@ -909,7 +911,7 @@ export function UnifiedFileBrowser({
           </div>
         ) : (
           <div className="space-y-2">
-            <Upload className="h-8 w-8 mx-auto text-muted-foreground" />
+            <Upload className="h-6 w-6 mx-auto text-muted-foreground" />
             <p className="text-sm text-muted-foreground">
               {isDragActive ? 'Drop your files here' : 'Drag and drop audio files here or '}
               {!isDragActive && (
@@ -1211,18 +1213,19 @@ export function UnifiedFileBrowser({
               {/* Display files for selected folder */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {getFilesForSelectedFolder().map((file) => (
-                  <div 
-                    key={file.id} 
+                  <div
+                    key={file.id}
                     className={cn(
                       "p-3 border rounded-lg transition-all duration-200 flex items-center gap-3 cursor-pointer",
-                      selectedItems.includes(file.id) 
-                        ? "bg-primary/10 border-primary" 
+                      selectedItems.includes(file.id)
+                        ? "bg-primary/10 border-primary"
                         : "hover:shadow-md hover:bg-primary/5"
                     )}
                     onClick={() => toggleItemSelection(file.id)}
+                    onDoubleClick={() => onFileDoubleClick?.(file)}
                   >
                     <div className="p-2 bg-primary/10 rounded-md">
-                      <FileIcon className="h-5 w-5 text-primary" />
+                      <FileIcon className="h-4 w-4 text-primary" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1">
@@ -1334,7 +1337,7 @@ export function UnifiedFileBrowser({
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    <Upload className="h-8 w-8 mx-auto text-muted-foreground" />
+                    <Upload className="h-6 w-6 mx-auto text-muted-foreground" />
                     <p className="text-sm text-muted-foreground">
                       {isDragActive ? 'Drop your files here' : 'Drag and drop audio files here or '}
                       {!isDragActive && (

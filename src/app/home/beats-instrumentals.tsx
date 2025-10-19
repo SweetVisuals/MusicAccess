@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { HomeLayout } from "@/components/layout/HomeLayout";
+import { PageLayout } from "@/components/layout/PageLayout";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -208,7 +208,7 @@ export default function BeatsInstrumentalsPage() {
   const availableKeys = Array.from(new Set(beatsInstrumentalsProjects.map(p => p.key))).sort();
 
   return (
-    <HomeLayout>
+    <PageLayout>
       <div className="flex-1 space-y-8 p-8 pt-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-4">
@@ -323,6 +323,6 @@ export default function BeatsInstrumentalsPage() {
           )}
         </div>
       </div>
-    </HomeLayout>
+    </PageLayout>
   );
 }

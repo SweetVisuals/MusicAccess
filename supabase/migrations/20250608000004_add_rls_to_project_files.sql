@@ -1,7 +1,7 @@
 -- Enable Row Level Security for project_files
 ALTER TABLE project_files ENABLE ROW LEVEL SECURITY;
 
--- Allow public read access to files in public projects
+-- Allow read access to files in public projects and user's own projects
 DROP POLICY IF EXISTS "Public project files are viewable by everyone." ON project_files;
 CREATE POLICY "Public project files are viewable by everyone."
   ON project_files FOR SELECT
@@ -9,7 +9,8 @@ CREATE POLICY "Public project files are viewable by everyone."
     EXISTS (
       SELECT 1
       FROM projects
-      WHERE projects.id = project_files.project_id AND projects.is_public = true
+      WHERE projects.id = project_files.project_id 
+      AND (projects.is_public = true OR projects.user_id = auth.uid())
     )
   );
 

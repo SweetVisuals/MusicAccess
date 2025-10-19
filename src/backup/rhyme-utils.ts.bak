@@ -1,0 +1,647 @@
+/**
+ * Utility functions for rhyme detection and phonetic matching
+ * Uses improved soundex-like algorithm for better rhyme matching on web
+ * Now includes external API integration for comprehensive rhyme suggestions
+ */
+
+import { doubleMetaphone } from 'double-metaphone';
+import nlp from 'compromise';
+import syllables from 'compromise-syllables';
+
+// Extend compromise with the syllables plugin
+const nlpEx = nlp.extend(syllables);
+
+export interface RhymeGroup {
+  rhymeKey: string;
+  words: string[];
+  startIndex: number;
+  endIndex: number;
+}
+
+// External rhyme API configuration
+const RHYME_API_CONFIG = {
+  baseUrl: 'https://api.datamuse.com/words',
+  maxRetries: 3,
+  timeout: 5000,
+  cacheTimeout: 300000 // 5 minutes cache
+};
+
+const PHONETIC_API_CONFIG = {
+  baseUrl: 'https://api.dictionaryapi.dev/api/v2/entries/en',
+  timeout: 5000,
+  cacheTimeout: 3600000 // 1 hour cache
+};
+
+const RHYME_BRAIN_API_CONFIG = {
+    baseUrl: 'https://rhymebrain.com/talk',
+    timeout: 5000,
+    cacheTimeout: 3600000 // 1 hour cache
+};
+
+// Simple cache for API responses
+const rhymeCache = new Map<string, { data: any; timestamp: number }>();
+
+/**
+ * Fetches rhymes from external API with caching and error handling
+ */
+async function fetchRhymesFromAPI(word: string): Promise<string[]> {
+  if (!word || word.length < 2) return [];
+
+  const cacheKey = word.toLowerCase();
+  const cached = rhymeCache.get(cacheKey);
+  
+  // Check cache first
+  if (cached && Date.now() - cached.timestamp < RHYME_API_CONFIG.cacheTimeout) {
+    return cached.data;
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), RHYME_API_CONFIG.timeout);
+
+    const response = await fetch(
+      `${RHYME_API_CONFIG.baseUrl}?rel_rhy=${encodeURIComponent(word)}&max=20`,
+      { signal: controller.signal }
+    );
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      throw new Error(`API request failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const rhymes = data.map((item: any) => item.word).filter((word: string) => word.length > 1);
+
+    // Cache the result
+    rhymeCache.set(cacheKey, { data: rhymes, timestamp: Date.now() });
+
+    return rhymes;
+  } catch (error) {
+    console.warn('Failed to fetch rhymes from API:', error);
+    // Return empty array instead of throwing to allow fallback
+    return [];
+  }
+}
+
+/**
+ * Fetches near rhymes (similar sounding words) from external API
+ */
+async function fetchNearRhymesFromAPI(word: string): Promise<string[]> {
+  if (!word || word.length < 2) return [];
+
+  const cacheKey = `near_${word.toLowerCase()}`;
+  const cached = rhymeCache.get(cacheKey);
+  
+  // Check cache first
+  if (cached && Date.now() - cached.timestamp < RHYME_API_CONFIG.cacheTimeout) {
+    return cached.data;
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), RHYME_API_CONFIG.timeout);
+
+    const response = await fetch(
+      `${RHYME_API_CONFIG.baseUrl}?sl=${encodeURIComponent(word)}&max=15`,
+      { signal: controller.signal }
+    );
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      throw new Error(`API request failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const nearRhymes = data.map((item: any) => item.word).filter((word: string) => word.length > 1);
+
+    // Cache the result
+    rhymeCache.set(cacheKey, { data: nearRhymes, timestamp: Date.now() });
+
+    return nearRhymes;
+  } catch (error) {
+    console.warn('Failed to fetch near rhymes from API:', error);
+    return [];
+  }
+}
+
+/**
+ * Fetches perfect rhymes from the RhymeBrain API.
+ */
+async function fetchRhymesFromSpecializedAPI(word: string): Promise<string[]> {
+    if (!word) return [];
+
+    const cacheKey = `rhymebrain_${word.toLowerCase()}`;
+    const cached = rhymeCache.get(cacheKey);
+
+    if (cached && Date.now() - cached.timestamp < RHYME_BRAIN_API_CONFIG.cacheTimeout) {
+        return cached.data;
+    }
+
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), RHYME_BRAIN_API_CONFIG.timeout);
+
+        const response = await fetch(`${RHYME_BRAIN_API_CONFIG.baseUrl}?function=getRhymes&word=${encodeURIComponent(word)}`, {
+            signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+            return [];
+        }
+
+        const data = await response.json();
+        const rhymes = data.map((item: any) => item.word).filter((w: string) => w.length > 1);
+
+        rhymeCache.set(cacheKey, { data: rhymes, timestamp: Date.now() });
+        return rhymes;
+
+    } catch (error) {
+        console.warn(`Failed to fetch rhymes from RhymeBrain for "${word}":`, error);
+        return [];
+    }
+}
+
+/**
+ * Fetches detailed phonetic information for a word.
+ */
+async function getPhoneticInfo(word: string): Promise<any> {
+  if (!word) return null;
+
+  const cacheKey = `phonetic_${word.toLowerCase()}`;
+  const cached = rhymeCache.get(cacheKey);
+
+  if (cached && Date.now() - cached.timestamp < PHONETIC_API_CONFIG.cacheTimeout) {
+    return cached.data;
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), PHONETIC_API_CONFIG.timeout);
+
+    const response = await fetch(`${PHONETIC_API_CONFIG.baseUrl}/${word}`, {
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      return null; // Word not found or API error
+    }
+
+    const data = await response.json();
+    rhymeCache.set(cacheKey, { data, timestamp: Date.now() });
+
+    return data;
+  } catch (error) {
+    console.warn(`Failed to fetch phonetic info for "${word}":`, error);
+    return null;
+  }
+}
+
+/**
+ * Generates phonetic keys for a word using the Double Metaphone algorithm.
+ * This is much more accurate for phonetic matching than simple Soundex-like algorithms.
+ */
+
+function getPhoneticKeys(word: string): [string, string] {
+  if (!word) return ['', ''];
+  const cleanedWord = word.toLowerCase().replace(/[^a-z]/g, '');
+  if (!cleanedWord) return ['', ''];
+  return doubleMetaphone(cleanedWord);
+}
+
+// Extracts the phonetic representation of the last syllable of a word
+const getLastSyllablePhonetics = (word: string): string | null => {
+    const doc = nlpEx(word);
+    const terms = doc.terms().json();
+    if (terms && terms.length > 0 && terms[0].syllables) {
+        const syllables = terms[0].syllables;
+        if (syllables.length > 0) {
+            // The last syllable's phonetics are most important for rhyming
+            return syllables[syllables.length - 1].phoneme;
+        }
+    }
+    return null;
+};
+
+// Calculates the similarity of two phonetic strings (e.g., from last syllables)
+const phoneticSimilarity = (phone1: string, phone2: string): number => {
+    if (!phone1 || !phone2) return 0;
+
+    // Normalize phonetic strings for better comparison
+    const normalize = (p: string) => p.toLowerCase().replace(/[^a-z]/g, '');
+    const norm1 = normalize(phone1);
+    const norm2 = normalize(phone2);
+
+    if (norm1 === norm2) return 100;
+
+    // A simple similarity score based on matching from the end of the string
+    let matchCount = 0;
+    let i = norm1.length - 1;
+    let j = norm2.length - 1;
+    while (i >= 0 && j >= 0 && norm1[i] === norm2[j]) {
+        matchCount++;
+        i--;
+        j--;
+    }
+
+    const maxLength = Math.max(norm1.length, norm2.length);
+    if (maxLength === 0) return 0;
+
+    return (matchCount / maxLength) * 100;
+};
+
+export async function calculateRhymeScore(word1: string, word2: string): Promise<number> {
+    const word1Lower = word1.toLowerCase();
+    const word2Lower = word2.toLowerCase();
+
+    if (!word1 || !word2 || word1Lower === word2Lower) {
+        return 0;
+    }
+
+    const excludedWords = new Set(['the', 'a', 'an', 'do', 'in', 'of', 'it', 'is', 'to', 'on']);
+    if (excludedWords.has(word1Lower) || excludedWords.has(word2Lower)) {
+        return 0;
+    }
+
+    try {
+        const rhymes = await fetchRhymesFromSpecializedAPI(word1);
+        if (rhymes.map(r => r.toLowerCase()).includes(word2Lower)) {
+            return 100;
+        }
+    } catch (error) {
+        console.warn(`Error calculating rhyme score for ${word1} and ${word2}`, error);
+    }
+
+    return 0;
+}
+
+
+/**
+ * Extracts all words from HTML content
+ */
+export function extractWordsFromHTML(htmlContent: string): Array<{ word: string; start: number; end: number }> {
+  const words: Array<{ word: string; start: number; end: number }> = [];
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = htmlContent;
+
+  const textNodes = [];
+  const walk = document.createTreeWalker(tempDiv, NodeFilter.SHOW_TEXT);
+  let node;
+  while (node = walk.nextNode()) {
+    textNodes.push(node);
+  }
+
+  let offset = 0;
+
+  textNodes.forEach(textNode => {
+    const text = textNode.textContent || '';
+    // Regex to capture words, including apostrophes.
+    const regex = /[a-zA-Z']+/g;
+    let match;
+
+    while ((match = regex.exec(text)) !== null) {
+      const start = offset + match.index;
+      const end = start + match[0].length;
+      words.push({
+        word: match[0],
+        start,
+        end
+      });
+    }
+    offset += text.length;
+  });
+
+  return words;
+}
+
+/**
+ * Groups words by their rhyme using phonetic matching
+ */
+export async function groupRhymes(words: Array<{ word: string; start: number; end: number }>): Promise<RhymeGroup[]> {
+    const RHYME_THRESHOLD = 90; // high threshold for API based check
+    const groups: RhymeGroup[] = [];
+    const assignedWords = new Set<string>();
+    const allWordsInfo = words.map((w, i) => ({ ...w, originalIndex: i }));
+
+    for (let i = 0; i < allWordsInfo.length; i++) {
+        const word1Info = allWordsInfo[i];
+        if (assignedWords.has(word1Info.word.toLowerCase())) {
+            continue;
+        }
+
+        const currentGroup: RhymeGroup = {
+            rhymeKey: `phonetic-${word1Info.word}`,
+            words: [word1Info.word],
+            startIndex: word1Info.start,
+            endIndex: word1Info.end,
+        };
+        let hasGrouped = false;
+
+        for (let j = i + 1; j < allWordsInfo.length; j++) {
+            const word2Info = allWordsInfo[j];
+            if (assignedWords.has(word2Info.word.toLowerCase())) {
+                continue;
+            }
+
+            const score = await calculateRhymeScore(word1Info.word, word2Info.word);
+
+            if (score >= RHYME_THRESHOLD) {
+                if (!hasGrouped) {
+                    assignedWords.add(word1Info.word.toLowerCase());
+                    hasGrouped = true;
+                }
+                currentGroup.words.push(word2Info.word);
+                assignedWords.add(word2Info.word.toLowerCase());
+            }
+        }
+
+        if (currentGroup.words.length > 1) {
+            groups.push(currentGroup);
+        }
+    }
+
+    // Final cleanup to set correct start/end indices
+    const finalGroups: RhymeGroup[] = [];
+    const wordMap = new Map(allWordsInfo.map(w => [w.word.toLowerCase(), w]));
+    groups.forEach(group => {
+        const presentWords = group.words.filter(w => wordMap.has(w.toLowerCase()));
+        if (presentWords.length > 1) {
+            let startIndex = Infinity, endIndex = -1;
+            presentWords.forEach(w => {
+                const info = wordMap.get(w.toLowerCase());
+                if (info) {
+                    startIndex = Math.min(startIndex, info.start);
+                    endIndex = Math.max(endIndex, info.end);
+                }
+            });
+            finalGroups.push({ ...group, words: presentWords, startIndex, endIndex });
+        }
+    });
+
+    return finalGroups;
+}
+
+/**
+ * Gets comprehensive rhyme suggestions for a given word using API + local matching
+ */
+export async function getRhymeSuggestions(word: string, allWordsInText: string[]): Promise<string[]> {
+  if (!word || word.length < 2) return [];
+
+  const suggestions: string[] = [];
+  const wordLower = word.toLowerCase();
+
+  try {
+    // 1. Get rhymes from external API
+    const apiRhymes = await fetchRhymesFromAPI(word);
+    const nearRhymes = await fetchNearRhymesFromAPI(word);
+    
+    // Add API rhymes first (these are most accurate)
+    apiRhymes.forEach(rhyme => {
+      if (rhyme.toLowerCase() !== wordLower && !suggestions.includes(rhyme.toLowerCase())) {
+        suggestions.push(rhyme.toLowerCase());
+      }
+    });
+
+    // Add near rhymes if we don't have enough perfect rhymes
+    if (suggestions.length < 3) {
+      nearRhymes.forEach(rhyme => {
+        if (rhyme.toLowerCase() !== wordLower && !suggestions.includes(rhyme.toLowerCase())) {
+          suggestions.push(rhyme.toLowerCase());
+        }
+      });
+    }
+
+    // 2. Look for words that rhyme in the current text (local matching)
+    for (const existingWord of allWordsInText) {
+      const score = await calculateRhymeScore(word, existingWord);
+      if (score > 80 && !suggestions.includes(existingWord.toLowerCase())) {
+        suggestions.push(existingWord.toLowerCase());
+      }
+    }
+
+    // 3. Add common rhyme words as fallback
+    const commonRhymes: { [key: string]: string[] } = {
+      'ight': ['light', 'night', 'bright', 'fight', 'might', 'right', 'tight', 'sight'],
+      'ove': ['love', 'above', 'dove', 'glove', 'shove'],
+      'ay': ['day', 'way', 'play', 'say', 'stay', 'away', 'today'],
+      'ing': ['sing', 'ring', 'bring', 'wing', 'thing', 'spring'],
+      'own': ['down', 'town', 'crown', 'brown', 'frown'],
+      'ake': ['wake', 'make', 'take', 'cake', 'lake', 'shake'],
+      'ime': ['time', 'clime', 'rhyme', 'chime', 'sublime'],
+      'ide': ['hide', 'ride', 'side', 'pride', 'tide'],
+      'ore': ['more', 'door', 'floor', 'store', 'roar'],
+      'ence': ['dance', 'chance', 'glance', 'fence', 'sense', 'hence'],
+      'art': ['heart', 'start', 'smart', 'part', 'cart'],
+      'ill': ['still', 'will', 'fill', 'chill', 'pill', 'skill']
+    };
+
+    const [primaryKey] = getPhoneticKeys(word);
+    const ending = primaryKey.slice(-3).toLowerCase();
+    const commonRhymesForEnding = commonRhymes[ending] || [];
+
+    commonRhymesForEnding.forEach(rhyme => {
+      if (!suggestions.includes(rhyme) &&
+          !allWordsInText.some(w => w.toLowerCase() === rhyme.toLowerCase())) {
+        suggestions.push(rhyme);
+      }
+    });
+
+  } catch (error) {
+    console.warn('Error getting rhyme suggestions:', error);
+    // Fallback to local matching only
+    for (const existingWord of allWordsInText) {
+        const score = await calculateRhymeScore(word, existingWord);
+        if (score > 80 && !suggestions.includes(existingWord.toLowerCase())) {
+            suggestions.push(existingWord.toLowerCase());
+        }
+    }
+  }
+
+  return suggestions.slice(0, 8); // Increased limit to 8 suggestions
+}
+
+/**
+ * Synchronous version for immediate feedback (uses only local matching)
+ */
+export function getRhymeSuggestionsSync(word: string, allWordsInText: string[]): string[] {
+    if (!word || word.length < 2) return [];
+
+    const suggestions: string[] = [];
+    const wordLower = word.toLowerCase();
+
+    // This is a sync function, so we can't use the async calculateRhymeScore.
+    // We will use the phonetic keys as a fallback.
+    const [phone1_1, phone1_2] = getPhoneticKeys(word);
+    const endsWith = (str: string, suffix: string) => str.endsWith(suffix);
+
+    allWordsInText.forEach(existingWord => {
+        if (typeof existingWord === 'string' && existingWord.toLowerCase() !== wordLower) {
+            const [phone2_1, phone2_2] = getPhoneticKeys(existingWord);
+            if (
+                (phone1_1 && phone2_1 && endsWith(phone1_1, phone2_1.slice(-3))) ||
+                (phone1_1 && phone2_2 && endsWith(phone1_1, phone2_2.slice(-3))) ||
+                (phone1_2 && phone2_1 && endsWith(phone1_2, phone2_1.slice(-3))) ||
+                (phone1_2 && phone2_2 && endsWith(phone1_2, phone2_2.slice(-3)))
+            ) {
+                if (!suggestions.includes(existingWord.toLowerCase())) {
+                    suggestions.push(existingWord.toLowerCase());
+                }
+            }
+        }
+    });
+
+
+    return suggestions.slice(0, 5);
+}
+
+/**
+ * Generates distinct colors for rhyme groups
+ * Uses a color palette with reduced opacity for highlighting
+ */
+export function generateRhymeColor(index: number): string {
+  // Enhanced color palette for rhyme groups with better visibility
+  const colors = [
+    'rgba(59, 130, 246, 0.3)',  // Blue
+    'rgba(236, 72, 153, 0.3)',  // Pink
+    'rgba(34, 197, 94, 0.3)',   // Green
+    'rgba(251, 146, 60, 0.3)',  // Orange
+    'rgba(168, 85, 247, 0.3)',  // Purple
+    'rgba(20, 184, 166, 0.3)',  // Teal
+    'rgba(250, 204, 21, 0.3)',  // Yellow
+    'rgba(239, 68, 68, 0.3)',   // Red
+    'rgba(99, 102, 241, 0.3)',  // Indigo
+    'rgba(14, 165, 233, 0.3)',  // Sky
+    'rgba(245, 158, 11, 0.3)',  // Amber
+    'rgba(132, 204, 22, 0.3)'   // Lime
+  ];
+
+  // Cycle through colors based on rhyme group index
+  return colors[index % colors.length];
+}
+
+/**
+ * Safely highlights rhymes in HTML content without corrupting the text
+ */
+export function highlightRhymes(htmlContent: string, rhymeGroups: RhymeGroup[]): string {
+  if (!htmlContent || !rhymeGroups || rhymeGroups.length === 0) {
+    return htmlContent;
+  }
+
+  try {
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = htmlContent;
+
+    const wordToRhymeGroupIndex = new Map<string, number>();
+    rhymeGroups.forEach((group, index) => {
+      group.words.forEach(word => {
+        wordToRhymeGroupIndex.set(word.toLowerCase(), index);
+      });
+    });
+
+    const walker = document.createTreeWalker(tempDiv, NodeFilter.SHOW_TEXT);
+    const textNodes: Text[] = [];
+    let currentNode;
+    while (currentNode = walker.nextNode()) {
+      textNodes.push(currentNode as Text);
+    }
+
+    textNodes.forEach(node => {
+      const text = node.textContent;
+      if (!text || !text.trim()) return;
+
+      const parent = node.parentNode;
+      if (!parent) return;
+
+      const fragment = document.createDocumentFragment();
+      const words = text.split(/([a-zA-Z']+|\s+|[^a-zA-Z'\s]+)/g).filter(Boolean);
+
+      words.forEach(word => {
+        const lowerWord = word.toLowerCase();
+        if (wordToRhymeGroupIndex.has(lowerWord)) {
+          const mark = document.createElement('mark');
+          const rhymeGroupIndex = wordToRhymeGroupIndex.get(lowerWord)!;
+          mark.style.backgroundColor = generateRhymeColor(rhymeGroupIndex);
+          mark.style.color = '#ffffff';
+          mark.style.padding = '2px 4px';
+          mark.style.borderRadius = '3px';
+          mark.style.fontWeight = '500';
+          mark.className = 'rhyme-highlight';
+          mark.textContent = word;
+          fragment.appendChild(mark);
+        } else {
+          fragment.appendChild(document.createTextNode(word));
+        }
+      });
+      parent.replaceChild(fragment, node);
+    });
+
+    return tempDiv.innerHTML;
+  } catch (error) {
+    console.error('Error highlighting rhymes:', error);
+    return htmlContent;
+  }
+}
+
+/**
+ * Gets word completion suggestions for predictive text
+ */
+export function getWordCompletionSuggestions(word: string, allWordsInText: string[]): string[] {
+  if (!word.trim()) return [];
+
+  const wordLower = word.toLowerCase();
+  const suggestions: string[] = [];
+
+  // First, find matches from existing text
+  allWordsInText.forEach(existingWord => {
+    if (existingWord.toLowerCase().startsWith(wordLower) &&
+        existingWord.toLowerCase() !== wordLower) {
+      if (!suggestions.includes(existingWord.toLowerCase())) {
+        suggestions.push(existingWord.toLowerCase());
+      }
+    }
+  });
+
+  // If we have enough from text, return them
+  if (suggestions.length >= 3) {
+    return suggestions.slice(0, 3);
+  }
+
+  // Add common words for completion
+  const commonWords = [
+    'the', 'and', 'you', 'that', 'with', 'have', 'this', 'will', 'your', 'from',
+    'they', 'know', 'want', 'been', 'good', 'much', 'some', 'time', 'very', 'when',
+    'come', 'here', 'just', 'like', 'love', 'make', 'need', 'over', 'said', 'such',
+    'take', 'than', 'them', 'well', 'were', 'what', 'when', 'will', 'year', 'able',
+    'about', 'above', 'after', 'again', 'against', 'almost', 'along', 'always', 'among',
+    'another', 'answer', 'around', 'asked', 'away', 'back', 'become', 'before', 'behind',
+    'being', 'below', 'both', 'came', 'cannot', 'could', 'does', 'done', 'down', 'each',
+    'either', 'enough', 'ever', 'every', 'fact', 'family', 'far', 'feel', 'felt', 'find',
+    'first', 'from', 'going', 'group', 'hand', 'hands', 'high', 'his', 'home', 'house',
+    'important', 'information', 'into', 'kind', 'know', 'last', 'least', 'left', 'less',
+    'life', 'light', 'like', 'live', 'long', 'made', 'make', 'many', 'might', 'most',
+    'more', 'morning', 'move', 'must', 'name', 'near', 'never', 'next', 'night', 'nothing',
+    'now', 'number', 'once', 'only', 'open', 'order', 'other', 'ours', 'over', 'part',
+    'people', 'place', 'play', 'point', 'power', 'put', 'reach', 'read', 'really', 'right',
+    'room', 'said', 'same', 'school', 'seems', 'should', 'show', 'side', 'since', 'small',
+    'some', 'something', 'space', 'speak', 'start', 'state', 'still', 'story', 'study',
+    'such', 'take', 'talk', 'than', 'their', 'them', 'then', 'these', 'they', 'thing',
+    'think', 'this', 'through', 'time', 'today', 'together', 'under', 'until', 'upon',
+    'very', 'walk', 'want', 'water', 'way', 'week', 'well', 'went', 'where', 'which',
+    'while', 'will', 'work', 'world', 'would', 'write', 'year', 'yesterday', 'yours', 'your'
+  ];
+
+  commonWords.forEach(commonWord => {
+    if (commonWord.startsWith(wordLower) &&
+        !suggestions.includes(commonWord) &&
+        !allWordsInText.some(w => w.toLowerCase() === commonWord.toLowerCase())) {
+      suggestions.push(commonWord);
+    }
+  });
+
+  return suggestions.slice(0, 5); // Limit to 5 suggestions
+}

@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AppSidebar } from "@/components/homepage/app-sidebar";
-import { SidebarInset, SidebarProvider } from "@/components/@/ui/sidebar";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/@/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +8,7 @@ import { Separator } from "@/components/@/ui/separator";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/@/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/@/ui/tabs";
+import { Badge } from "@/components/@/ui/badge";
 import { useCart } from '@/contexts/cart-context';
 import { useAuth } from '@/contexts/auth-context';
 import { toast } from 'sonner';
@@ -41,6 +40,13 @@ import {
 } from "@/components/@/ui/tooltip";
 import { supabase } from "@/lib/supabase";
 
+interface OrderFile {
+  id: string;
+  name: string;
+  url: string;
+  type: string;
+}
+
 export default function CheckoutPage() {
   const { cart, clearCart } = useCart();
   const { user } = useAuth();
@@ -50,10 +56,12 @@ export default function CheckoutPage() {
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [showErrorDialog, setShowErrorDialog] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [isNavigatingFromSuccess, setIsNavigatingFromSuccess] = useState(false);
   const [walletBalance, setWalletBalance] = useState(500); // Mock wallet balance
   const [savePaymentInfo, setSavePaymentInfo] = useState(false);
   const [guestCheckout, setGuestCheckout] = useState(!user);
   const [orderId, setOrderId] = useState<string>('');
+  const [purchasedItems, setPurchasedItems] = useState<any[]>([]);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -82,17 +90,17 @@ export default function CheckoutPage() {
   });
   
   // Calculate order summary
-  const subtotal = cart.reduce((sum, item) => sum + item.price, 0);
+  const subtotal = cart.reduce((sum, item) => sum + (item.price || 0), 0);
   const processingFee = subtotal * 0.03; // 3% processing fee
   const tax = subtotal * 0.08; // 8% tax
   const total = subtotal + tax + processingFee;
   
   // Check if cart is empty and redirect if needed
   useEffect(() => {
-    if (cart.length === 0) {
+    if (cart.length === 0 && !showSuccessDialog && !isNavigatingFromSuccess) {
       navigate('/');
     }
-  }, [cart, navigate]);
+  }, [cart, navigate, showSuccessDialog, isNavigatingFromSuccess]);
   
   // Handle form input changes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -116,11 +124,37 @@ export default function CheckoutPage() {
   // Process payment
   const handleProcessPayment = async () => {
     setIsProcessing(true);
-    
+
     try {
+      // Validate billing information
+      if (!formData.firstName.trim()) {
+        throw new Error('Please enter your first name');
+      }
+      if (!formData.lastName.trim()) {
+        throw new Error('Please enter your last name');
+      }
+      if (!formData.email.trim()) {
+        throw new Error('Please enter your email address');
+      }
+      if (!formData.address.trim()) {
+        throw new Error('Please enter your address');
+      }
+      if (!formData.city.trim()) {
+        throw new Error('Please enter your city');
+      }
+      if (!formData.state.trim()) {
+        throw new Error('Please enter your state');
+      }
+      if (!formData.zipCode.trim()) {
+        throw new Error('Please enter your zip code');
+      }
+      if (!formData.country.trim()) {
+        throw new Error('Please select your country');
+      }
+
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 2000));
-      
+
       // Check payment method specific validations
       if (paymentMethod === 'card') {
         // Validate card details
@@ -147,6 +181,8 @@ export default function CheckoutPage() {
       // Create order in database
       const orderData = {
         user_id: user?.id || null,
+        title: cart.length === 1 ? cart[0].title : `${cart.length} items`,
+        type: 'order',
         customer_name: `${formData.firstName} ${formData.lastName}`,
         customer_email: formData.email,
         customer_phone: formData.phone,
@@ -157,26 +193,111 @@ export default function CheckoutPage() {
         tax: tax,
         total: total,
         status: 'completed',
-        items: cart.map(item => ({
-          id: item.id,
-          title: item.title,
-          price: item.price,
-          type: item.type || 'Beat'
+        items: await Promise.all(cart.map(async (item) => {
+          let files: OrderFile[] = [];
+
+          if (item.type === 'track' && item.selected_file_types && item.selected_file_types.length > 0) {
+            // For tracks with selected file types, fetch the actual files
+            try {
+              // Get track variants for this track
+              const { data: variants } = await supabase
+                .from('track_variants')
+                .select('file_id, variant_type')
+                .eq('track_id', item.track_id);
+
+              if (variants && variants.length > 0) {
+                const fileIds = variants.map(v => v.file_id);
+                const variantMap = new Map(variants.map(v => [v.file_id, v.variant_type]));
+
+                // Get project files for these file_ids
+                const { data: projectFiles, error } = await supabase
+                  .from('project_files')
+                  .select(`
+                    file_id,
+                    files (
+                      id,
+                      name,
+                      file_url,
+                      file_path
+                    )
+                  `)
+                  .in('file_id', fileIds);
+
+                if (!error && projectFiles && projectFiles.length > 0) {
+                  // Filter files by selected types
+                  files = projectFiles
+                    .filter(pf => pf.files && item.selected_file_types!.includes(variantMap.get(pf.file_id) || 'mp3'))
+                    .map(pf => ({
+                      id: (pf.files as any).id,
+                      name: (pf.files as any).name,
+                      url: (pf.files as any).file_url,
+                      type: variantMap.get(pf.file_id) || 'mp3'
+                    }));
+                }
+              } else {
+                // Fallback: try to get files directly from project_files if no variants exist
+                const { data: projectFiles, error } = await supabase
+                  .from('project_files')
+                  .select(`
+                    files (
+                      id,
+                      name,
+                      file_url,
+                      file_path
+                    )
+                  `)
+                  .eq('project_id', item.project_id);
+
+                if (!error && projectFiles && projectFiles.length > 0) {
+                  files = projectFiles
+                    .filter(pf => pf.files)
+                    .map(pf => ({
+                      id: (pf.files as any).id,
+                      name: (pf.files as any).name,
+                      url: (pf.files as any).file_url,
+                      type: 'mp3' // Default type
+                    }));
+                }
+              }
+            } catch (error) {
+              console.error('Error fetching files for item:', item.id, error);
+            }
+          }
+
+          return {
+            id: item.id, // This is the cart_item_id
+            project_id: item.project_id || (item.type === 'track' ? item.project_id : undefined),
+            track_id: item.type === 'track' ? item.track_id : undefined,
+            title: item.title,
+            price: item.price,
+            type: item.type,
+            selected_file_types: item.selected_file_types,
+            files: files
+          };
         }))
       };
-      
-      // If user is logged in, save order to database
-      if (user) {
-        // In a real app, you would save the order to your database
-        // For this example, we'll just generate a random order ID
-        const generatedOrderId = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
-        setOrderId(generatedOrderId);
-      } else {
-        // For guest checkout, just generate a random order ID
+
+      // Save order to database
+      try {
+        const { data: savedOrder, error: orderError } = await supabase
+          .from('orders')
+          .insert(orderData)
+          .select()
+          .single();
+
+        if (orderError) throw orderError;
+
+        setOrderId(savedOrder.id);
+      } catch (dbError) {
+        console.error('Error saving order:', dbError);
+        // For guest checkout or if database save fails, generate a random order ID
         const generatedOrderId = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
         setOrderId(generatedOrderId);
       }
       
+      // Store purchased items before clearing cart
+      setPurchasedItems([...cart]);
+
       // Simulate successful payment
       clearCart();
       setShowSuccessDialog(true);
@@ -208,11 +329,9 @@ export default function CheckoutPage() {
   };
   
   return (
-    <SidebarProvider>
-      <AppSidebar variant="inset" />
-      <SidebarInset>
-        <div className="flex flex-1 flex-col">
-          <div className="@container/main flex flex-1 flex-col gap-6 animate-fade-in p-8">
+    <>
+      <div className="flex flex-1 flex-col">
+        <div className="@container/main flex flex-1 flex-col gap-6 animate-fade-in p-8">
             {/* Header */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -655,21 +774,18 @@ export default function CheckoutPage() {
                     <div className="space-y-4">
                       {cart.map((item) => (
                         <div key={item.id} className="flex gap-4">
-                          {item.artworkUrl && (
-                            <div className="h-16 w-16 rounded-md overflow-hidden flex-shrink-0">
-                              <img 
-                                src={item.artworkUrl} 
-                                alt={item.title} 
-                                className="h-full w-full object-cover"
-                              />
-                            </div>
-                          )}
+                          {/* Removed image display as per user feedback */}
                           <div className="flex-1 min-w-0">
                             <h4 className="font-medium truncate">{item.title}</h4>
-                            <p className="text-sm text-muted-foreground">{item.type || 'Beat'}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {item.type === 'project' ? 'Project' :
+                               item.selected_file_types && item.selected_file_types.length > 0 ?
+                               item.selected_file_types.map(type => type.toUpperCase()).join(' + ') :
+                               'Track'}
+                            </p>
                           </div>
                           <div className="text-right">
-                            <p className="font-medium">${item.price.toFixed(2)}</p>
+                            <p className="font-medium">${(item.price || 0).toFixed(2)}</p>
                           </div>
                         </div>
                       ))}
@@ -745,11 +861,16 @@ export default function CheckoutPage() {
             </div>
           </div>
         </div>
-      </SidebarInset>
-      
+
       {/* Success Dialog */}
-      <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
-        <DialogContent className="sm:max-w-[425px]">
+      <Dialog open={showSuccessDialog} onOpenChange={(open) => {
+        if (!open) {
+          // Prevent closing the dialog by clicking outside or pressing escape
+          return;
+        }
+        setShowSuccessDialog(open);
+      }} modal>
+        <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-green-500">
               <CheckCircle2 className="h-5 w-5" />
@@ -758,26 +879,88 @@ export default function CheckoutPage() {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <p>Your order has been successfully processed!</p>
-            <div className="rounded-lg border p-4 bg-muted/20">
-              <p className="font-medium">Order Details</p>
-              <p className="text-sm text-muted-foreground">Order #: {orderId || Math.floor(Math.random() * 1000000).toString().padStart(6, '0')}</p>
-              <p className="text-sm text-muted-foreground">Total: ${total.toFixed(2)}</p>
-              <p className="text-sm text-muted-foreground">Payment Method: {
-                paymentMethod === 'card' ? 'Credit/Debit Card' : 
-                paymentMethod === 'wallet' ? 'Wallet Balance' : 
-                'Cryptocurrency'
-              }</p>
+            <div className="rounded-lg border p-4 bg-muted/20 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="font-medium">Order ID:</span>
+                <span className="font-mono text-sm">{orderId}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="font-medium">Order Date:</span>
+                <span className="text-sm">{new Date().toLocaleString()}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="font-medium">Total Amount:</span>
+                <span className="font-medium">${total.toFixed(2)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="font-medium">Payment Method:</span>
+                <span className="text-sm">{
+                  paymentMethod === 'card' ? 'Credit/Debit Card' :
+                  paymentMethod === 'wallet' ? 'Wallet Balance' :
+                  'Cryptocurrency'
+                }</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="font-medium">Status:</span>
+                <Badge className="bg-green-500/10 text-green-500">Completed</Badge>
+              </div>
             </div>
+
+            <div className="rounded-lg border p-4 bg-blue-50 dark:bg-blue-900/10">
+              <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">Order Summary</h4>
+              <div className="space-y-1 text-sm">
+                <div className="flex justify-between">
+                  <span>Subtotal:</span>
+                  <span>${subtotal.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Processing Fee:</span>
+                  <span>${processingFee.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Tax:</span>
+                  <span>${tax.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between font-medium">
+                  <span>Total:</span>
+                  <span>${total.toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-lg border p-4">
+              <h4 className="font-medium mb-2">Items Purchased</h4>
+              <div className="space-y-2">
+                {purchasedItems.map((item) => (
+                  <div key={item.id} className="flex justify-between items-center text-sm">
+                    <div>
+                      <span>{item.title}</span>
+                      {item.selected_file_types && item.selected_file_types.length > 0 && (
+                        <div className="text-xs text-muted-foreground">
+                          {item.selected_file_types.map(type => type.toUpperCase()).join(' + ')}
+                        </div>
+                      )}
+                    </div>
+                    <span>${(item.price || 0).toFixed(2)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             <p className="text-sm text-muted-foreground">
-              A confirmation email has been sent to {formData.email}. You can download your purchased items from your account dashboard.
+              A confirmation email has been sent to {formData.email}. You can download your purchased items from your order history page.
             </p>
           </div>
           <DialogFooter>
-            <Button onClick={() => {
-              setShowSuccessDialog(false);
-              navigate('/orders/history');
-            }}>
-              View Order History
+            <Button
+              onClick={() => {
+                setIsNavigatingFromSuccess(true);
+                setShowSuccessDialog(false);
+                navigate('/orders/history', { state: { newOrder: savedOrder } });
+              }}
+              className="w-full"
+            >
+              Continue to Order History
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -808,6 +991,6 @@ export default function CheckoutPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </SidebarProvider>
+    </>
   );
 }

@@ -17,7 +17,32 @@ ALTER TABLE audio_tracks ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Public audio_tracks are viewable by everyone." ON audio_tracks;
 CREATE POLICY "Public audio_tracks are viewable by everyone."
   ON audio_tracks FOR SELECT
-  USING (true);
+  USING (
+    EXISTS (
+      SELECT 1
+      FROM public.projects
+      WHERE projects.id = audio_tracks.project_id AND projects.is_public = true
+    )
+  );
+
+-- Allow viewing tracks from user's own projects (authenticated users)
+DROP POLICY IF EXISTS "Users can view their own audio_tracks." ON audio_tracks;
+CREATE POLICY "Users can view their own audio_tracks."
+  ON audio_tracks FOR SELECT
+  USING (auth.uid() = user_id);
+
+-- Allow viewing tracks when browsing user profiles (even without auth)
+DROP POLICY IF EXISTS "Profile audio_tracks are viewable when browsing profiles." ON audio_tracks;
+CREATE POLICY "Profile audio_tracks are viewable when browsing profiles."
+  ON audio_tracks FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1
+      FROM public.projects
+      WHERE projects.id = audio_tracks.project_id
+      AND projects.is_public = true
+    )
+  );
 
 DROP POLICY IF EXISTS "Users can insert their own audio_tracks." ON audio_tracks;
 CREATE POLICY "Users can insert their own audio_tracks."

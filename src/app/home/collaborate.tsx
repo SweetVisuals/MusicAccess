@@ -1,4 +1,3 @@
-import { HomeLayout } from "@/components/layout/HomeLayout"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/@/ui/card"
 import { Button } from "@/components/@/ui/button"
 import { Input } from "@/components/@/ui/input"
@@ -84,8 +83,7 @@ const collaborationPosts = [
 
 export default function CollaboratePage() {
   return (
-    <HomeLayout>
-      <div className="flex-1 space-y-8 p-8 pt-6">
+    <div className="flex-1 space-y-8 p-8 pt-6">
         {/* Header Section */}
         <div className="flex justify-between items-start">
           <div>
@@ -243,6 +241,5 @@ export default function CollaboratePage() {
           </TabsContent>
         </Tabs>
       </div>
-    </HomeLayout>
   )
 }

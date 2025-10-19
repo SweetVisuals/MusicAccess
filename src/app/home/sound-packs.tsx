@@ -17,7 +17,7 @@ import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/@/ui/badge";
-import { HomeLayout } from "@/components/layout/HomeLayout"; // Import HomeLayout
+import { PageLayout } from "@/components/layout/PageLayout";
 
 // Placeholder data for projects (similar to trendingProjects from homepage.tsx)
 const soundPacksProjects = [
@@ -207,8 +207,8 @@ export default function SoundPacksPage() {
   const availableFormats = Array.from(new Set(soundPacksProjects.map(p => p.format))).sort();
 
   return (
-    <HomeLayout>
-      <div className="flex-1 space-y-8 p-8 pt-14">
+    <PageLayout>
+      <div className="flex-1 space-y-8 p-8 pt-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-4">
             <Link to="/home/homepage" className="text-muted-foreground hover:text-primary transition-colors duration-300 ease-in-out">
@@ -294,6 +294,6 @@ export default function SoundPacksPage() {
           )}
         </div>
       </div>
-    </HomeLayout>
+    </PageLayout>
   );
 }

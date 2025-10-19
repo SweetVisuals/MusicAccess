@@ -13,7 +13,8 @@ import { useCart } from "@/contexts/cart-context";
 import { toast } from "sonner";
 
 export default function ViewPage() {
-  const { projectId } = useParams();
+  const params = useParams();
+  const projectId = params.projectId as string;
   const [project, setProject] = useState<Project | null>(null);
   const [recommendedProjects, setRecommendedProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,10 +49,6 @@ export default function ViewPage() {
             profiles (
               *,
               avatarUrl:avatar_url
-            ),
-            audio_tracks (
-              *,
-              price
             )
           `
           )
@@ -61,33 +58,84 @@ export default function ViewPage() {
         if (projectError) {
           console.error("Error fetching project:", projectError);
           setProject(null);
-        } else {
-          setProject(projectData);
+          setLoading(false);
+          return;
+        }
 
-          // Fetch recommendations after project is fetched
-          const fetchRecommendedProjects = supabase
-            .from("projects")
-            .select(
-              `
-              *,
-              profiles (
-                *,
-                avatarUrl:avatar_url
-              ),
-              audio_tracks (*)
+        // Fetch project files for tracks (new structure)
+        const { data: filesData, error: filesError } = await supabase
+          .from('project_files')
+          .select('*, file_data(*)')
+          .eq('project_id', fullProjectId)
+          .order('created_at', { ascending: true });
+
+        if (filesError) {
+          console.error("Error fetching project files:", filesError);
+        }
+
+        // Create project with both new and old structure for compatibility
+        const projectWithFiles = {
+          ...projectData,
+          files: filesData || [],
+          // Keep audio_tracks for backward compatibility
+          audio_tracks: (filesData || []).filter(file => file.file_data?.audio_url).map(file => ({
+            ...file.file_data,
+            id: file.file_data?.id || file.id,
+            price: file.price,
+            allow_download: file.allow_downloads
+          }))
+        };
+        
+        setProject(projectWithFiles);
+
+        // Fetch recommendations after project is fetched
+        const fetchRecommendedProjects = supabase
+          .from("projects")
+          .select(
             `
+            *,
+            profiles (
+              *,
+              avatarUrl:avatar_url
             )
-            .neq("id", fullProjectId)
-            .limit(3);
+          `
+          )
+          .neq("id", fullProjectId)
+          .limit(3);
 
-          // Fetch recommended projects data
-          const { data: recommendedProjectsData, error: recommendedProjectsError } = await fetchRecommendedProjects;
+        // Fetch recommended projects data
+        const { data: recommendedProjectsData, error: recommendedProjectsError } = await fetchRecommendedProjects;
+        
+        if (recommendedProjectsError) {
+          console.error("Error fetching recommended projects:", recommendedProjectsError);
+        } else {
+          // For each recommended project, fetch its files
+          const recommendedProjectsWithFiles = await Promise.all(
+            (recommendedProjectsData || []).map(async (project) => {
+              const { data: recFilesData, error: recFilesError } = await supabase
+                .from('project_files')
+                .select('*, file_data(*)')
+                .eq('project_id', project.id)
+                .order('created_at', { ascending: true });
+
+              if (recFilesError) {
+                console.error(`Error fetching files for recommended project ${project.id}:`, recFilesError);
+              }
+
+              return {
+                ...project,
+                files: recFilesData || [],
+                audio_tracks: (recFilesData || []).filter(file => file.file_data?.audio_url).map(file => ({
+                  ...file.file_data,
+                  id: file.file_data?.id || file.id,
+                  price: file.price,
+                  allow_download: file.allow_downloads
+                }))
+              };
+            })
+          );
           
-          if (recommendedProjectsError) {
-            console.error("Error fetching recommended projects:", recommendedProjectsError);
-          } else {
-            setRecommendedProjects(recommendedProjectsData);
-          }
+          setRecommendedProjects(recommendedProjectsWithFiles);
         }
         setLoading(false);
       };

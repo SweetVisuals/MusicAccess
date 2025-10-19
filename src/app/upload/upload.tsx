@@ -211,8 +211,8 @@ export default function FileManager() {
   };
 
   return (
-    <DashboardLayout show_header={false}>
-      <div className="flex flex-col gap-4 animate-fade-in p-6 w-full">
+    <DashboardLayout>
+      <div className="@container/main flex flex-1 flex-col gap-6 animate-fade-in p-6">
         <input
           type="file"
           ref={fileInputRef}
@@ -222,7 +222,7 @@ export default function FileManager() {
           accept="audio/*,.mp3,.wav,.aiff,.flac,.ogg,.aac"
         />
         {isUploading && (
-          <div className="p-4 bg-muted/20 border-b">
+          <div className="p-4 bg-muted/20 border rounded-lg px-4">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium">Uploading files...</span>

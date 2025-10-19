@@ -29,11 +29,10 @@ export function SortableTabTrigger({
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes}>
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
       <TabsTrigger
         value={value}
         className={className}
-        {...listeners}
       >
         {children}
       </TabsTrigger>

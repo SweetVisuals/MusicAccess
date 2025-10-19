@@ -1,6 +1,7 @@
 import { Trophy, Music, Headphones, Mail, Link, Calendar, User } from 'lucide-react';
 import { Card } from '@/components/@/ui/card';
 import type { UserProfile } from '@/lib/types';
+import { useAchievements } from '@/hooks/useAchievements';
 
 interface AboutTabProps {
   user: UserProfile;
@@ -8,10 +9,14 @@ interface AboutTabProps {
 
 const AboutTab = ({ user }: AboutTabProps) => {
   const profile = user;
+  const { achievements, loading: achievementsLoading } = useAchievements(user.id);
 
-  // Use real profile data if available, fallback to sample data
-  const achievements = Array.isArray(profile.achievements) && profile.achievements.length
-    ? profile.achievements
+  // Use real achievements data if available, fallback to sample data
+  const displayAchievements = achievements.length > 0
+    ? achievements.map(achievement => ({
+        year: achievement.year,
+        description: achievement.title + (achievement.description ? `: ${achievement.description}` : '')
+      }))
     : [
         { year: 2023, description: 'Reached 10,000 streams' },
         { year: 2022, description: 'Featured on Spotify playlist' },
@@ -54,12 +59,18 @@ const AboutTab = ({ user }: AboutTabProps) => {
           <h3 className="font-medium">Achievements</h3>
         </div>
         <div className="space-y-3">
-          {achievements.map((item, index) => (
-            <div key={index} className="flex gap-4">
-              <span className="text-muted-foreground">{item.year}</span>
-              <p>{item.description}</p>
-            </div>
-          ))}
+          {achievementsLoading ? (
+            <div className="text-muted-foreground">Loading achievements...</div>
+          ) : displayAchievements.length > 0 ? (
+            displayAchievements.map((item, index) => (
+              <div key={index} className="flex gap-4">
+                <span className="text-muted-foreground">{item.year || 'N/A'}</span>
+                <p>{item.description}</p>
+              </div>
+            ))
+          ) : (
+            <div className="text-muted-foreground">No achievements added yet.</div>
+          )}
         </div>
       </Card>
 

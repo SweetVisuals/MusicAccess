@@ -2,12 +2,10 @@ import { VideoIcon } from "lucide-react"
 import { TutorialCard } from "@/components/homepage/tutorial-card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/@/ui/tabs"
 import { motion, AnimatePresence } from "framer-motion"
-import { HomeLayout } from "@/components/layout/HomeLayout"
 
 export default function TutorialsPage() {
   return (
-    <HomeLayout>
-      <div className="flex-1 flex flex-col gap-8 py-4 md:gap-10 md:py-6 px-4">
+    <div className="flex-1 flex flex-col gap-8 py-4 md:gap-10 md:py-6 px-4">
         <section className="space-y-6">
           <h2 className="text-2xl font-bold">Video Tutorials</h2>
           <Tabs defaultValue="production" className="w-full">
@@ -146,6 +144,5 @@ export default function TutorialsPage() {
           </Tabs>
         </section>
       </div>
-    </HomeLayout>
   )
 }

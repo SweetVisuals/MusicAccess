@@ -2,15 +2,19 @@ import { createContext, useContext, useState, useRef, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from './auth-context';
 
-export type Track = {
-  id: string;
-  title: string;
+import { Project, DatabaseFile, Track as LibTrack } from '@/lib/types'; // Import Project and DatabaseFile types
+
+export type Track = LibTrack & {
   duration: number; // Changed from string to number
   artworkUrl?: string;
   artist?: string;
   projectTitle?: string;
   audioUrl?: string; // URL to the audio file
   file_url?: string; // Alternative URL field from database
+  file_path?: string; // Path to the file in storage for signed URLs
+  noteId?: string; // ID of the note this track is attached to
+  attachedFiles?: DatabaseFile[]; // Files attached to the note
+  attachedProject?: Project; // Project attached to the note
 };
 
 type AudioPlayerContextType = {
@@ -41,8 +45,10 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const { user } = useAuth();
-  
+
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const lastStreamTimeRef = useRef<Map<string, number>>(new Map()); // Track last stream time per track-user combination
+  const playbackStartTimeRef = useRef<number>(0);
   
   // Initialize audio element
   useEffect(() => {
@@ -61,6 +67,8 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
       audio.removeEventListener('ended', handleEnded);
       audio.removeEventListener('error', handleError);
       audio.pause();
+      audio.src = '';
+      audioRef.current = null;
     };
   }, []);
   
@@ -68,15 +76,17 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
   useEffect(() => {
     if (currentTrack && audioRef.current) {
       // Use the track's audio URL or file_url as fallback
-      const audioSource = currentTrack.audioUrl || currentTrack.file_url || '';
-      
+      const audioSource = currentTrack.audioUrl || currentTrack.audio_url || currentTrack.file_url || '';
+
+
       if (!audioSource) {
         console.error('No audio source available for track:', currentTrack);
         return;
       }
-      
+
       audioRef.current.src = audioSource;
-      
+      audioRef.current.load(); // Ensure the audio loads properly
+
       if (isPlaying) {
         audioRef.current.play().catch(error => {
           console.error('Error playing audio:', error);
@@ -84,11 +94,45 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
         });
       }
     }
-  }, [currentTrack]);
+  }, [currentTrack, isPlaying]);
+
+  // Reset stream tracking when user changes
+  useEffect(() => {
+    lastStreamTimeRef.current.clear();
+    playbackStartTimeRef.current = 0;
+  }, [user?.id]);
   
   const updateProgress = () => {
     if (audioRef.current) {
-      setProgress(audioRef.current.currentTime);
+      const currentTime = audioRef.current.currentTime;
+      setProgress(currentTime);
+
+      // Check if we should count a stream (8+ seconds played with rate limiting)
+      if (currentTrack && user && currentTime >= 8) {
+        const streamKey = `${user.id}-${currentTrack.id}`;
+        const lastStreamTime = lastStreamTimeRef.current.get(streamKey) || 0;
+        const now = Date.now();
+        const timeSinceLastStream = now - lastStreamTime;
+
+        // Rate limit: allow streams every 30 seconds minimum to prevent botting
+        if (timeSinceLastStream >= 30000) {
+          // Update last stream time
+          lastStreamTimeRef.current.set(streamKey, now);
+
+          // Log the stream event to database
+          supabase.from('track_streams').insert({
+            track_id: currentTrack.id,
+            user_id: user.id,
+            streams: 1 // Count this as 1 stream
+          }).then(({ error }) => {
+            if (error) {
+              console.error('Error logging track stream:', error);
+              // If there was an error, allow retry by not updating the timestamp
+              lastStreamTimeRef.current.delete(streamKey);
+            }
+          });
+        }
+      }
     }
   };
   
@@ -104,6 +148,8 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
     if (audioRef.current) {
       audioRef.current.currentTime = 0;
     }
+    // Reset playback start time
+    playbackStartTimeRef.current = 0;
   };
   
   const handleError = (e: Event) => {
@@ -117,21 +163,13 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
       togglePlay();
       return;
     }
-    
+
+    // Reset stream tracking for new track
+    playbackStartTimeRef.current = Date.now();
+
     // Otherwise, set the new track and start playing
     setCurrentTrack(track);
     setIsPlaying(true);
-
-    // Log the stream event
-    if (track.id) {
-      const { error } = await supabase.from('track_streams').insert({
-        track_id: track.id,
-        user_id: user?.id,
-      });
-      if (error) {
-        console.error('Error logging track stream:', error);
-      }
-    }
   };
 
   const togglePlay = () => {

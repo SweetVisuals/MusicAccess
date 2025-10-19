@@ -1,144 +1,20 @@
-import * as React from "react"
-import { useState, useEffect } from "react"
-import { useLocation } from "react-router-dom"
-import {
-  ArrowUpCircleIcon,
-  BarChartIcon,
-  CameraIcon,
-  ClipboardListIcon,
-  DatabaseIcon,
-  FileCodeIcon,
-  FileIcon,
-  FileTextIcon,
-  FolderIcon,
-  HelpCircleIcon,
-  LayoutDashboardIcon,
-  ListIcon,
-  SearchIcon,
-  SettingsIcon,
-  UsersIcon,
-} from "lucide-react"
-
-import { NavDocuments } from "@/components/homepage/nav-documents"
-import { NavMain } from "@/components/dashboard/layout/nav-main"
-import { NavSecondary } from "@/components/dashboard/layout/nav-secondary"
-import { NavUser } from "@/components/homepage/nav-user"
-import { useAuth } from "@/contexts/auth-context"
-import { supabase } from "@/lib/supabase"
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-} from "@/components/@/ui/sidebar"
-
-const data = {
-  navMain: [
-    {
-      title: "Discover",
-      url: "/",
-      icon: SearchIcon,
-      items: [
-        {
-          title: "Trending",
-          url: "#",
-        },
-        {
-          title: "Genres",
-          url: "#",
-        },
-        {
-          title: "... More",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Tutorials",
-      url: "/tutorials",
-      icon: FileTextIcon,
-    },
-    {
-      title: "Find Talent",
-      url: "/find-talent",
-      icon: UsersIcon,
-    },
-    {
-      title: "Marketing",
-      url: "/marketing",
-      icon: BarChartIcon,
-    },
-    {
-      title: "Collaborate",
-      url: "/collaborate",
-      icon: UsersIcon,
-    },
-  ],
-  navClouds: [],
-  navSecondary: [
-    {
-      title: "Settings",
-      url: "#",
-      icon: SettingsIcon,
-    },
-    {
-      title: "Get Help",
-      url: "#",
-      icon: HelpCircleIcon,
-    },
-    {
-      title: "Search",
-      url: "#",
-      icon: SearchIcon,
-    },
-  ],
-};
+import * as React from "react";
+import { useAuth } from "@/contexts/auth-context";
+import { Sidebar } from "@/components/@/ui/sidebar";
+import { SidebarHeader } from "../sidebar/SidebarHeader";
+import { SidebarContent } from "../sidebar/SidebarContent";
+import { SidebarFooter } from "../sidebar/SidebarFooter";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { user, isLoading } = useAuth()
-  const location = useLocation()
+  const { isLoading } = useAuth();
 
-  if (isLoading) return null
-
-  const filteredNavMain = user
-    ? data.navMain
-    : data.navMain.filter(item => item.title === "Discover")
+  if (isLoading) return null;
 
   return (
-    <Sidebar collapsible="icon" {...props}>
-      <SidebarHeader>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              className="data-[slot=sidebar-menu-button]:!p-1.5"
-              tooltip="Music Access Studio"
-            >
-              <a href="#">
-                <ArrowUpCircleIcon className="h-5 w-5" />
-                <span className="text-base font-semibold !text-white">
-                  Music Access Studio
-                </span>
-              </a>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarHeader>
-      <SidebarContent>
-        <NavMain items={filteredNavMain} showQuickActions={!!user} />
-        {user && (
-          <>
-            <NavDocuments />
-            <NavSecondary items={data.navSecondary} className="mt-auto" />
-          </>
-        )}
-      </SidebarContent>
-      <SidebarFooter>
-        <NavUser />
-      </SidebarFooter>
+    <Sidebar collapsible="offcanvas" {...props}>
+      <SidebarHeader />
+      <SidebarContent />
+      <SidebarFooter />
     </Sidebar>
-  )
+  );
 }

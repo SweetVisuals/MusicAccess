@@ -7,12 +7,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/@/ui/dropdown-menu';
+import { formatDuration, parseDuration } from '@/lib/utils';
 
 interface TrackCardProps {
   track: {
     id: string;
     title: string;
-    duration: string;
+    duration: string | number;
     streams: number;
     artworkUrl: string;
     isPopular: boolean;
@@ -45,7 +46,7 @@ const TrackCard = ({ track, variant }: TrackCardProps) => {
           )}
         </div>
         <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <span>{track.duration}</span>
+          <span>{formatDuration(parseDuration(track.duration))}</span>
           <span>{track.streams.toLocaleString()} streams</span>
         </div>
         <div className="flex items-center gap-2 pt-2">
@@ -99,7 +100,7 @@ const TrackCard = ({ track, variant }: TrackCardProps) => {
           )}
         </div>
         <p className="text-sm text-muted-foreground truncate">
-          {track.duration} • {track.streams.toLocaleString()} streams
+          {formatDuration(parseDuration(track.duration))} • {track.streams.toLocaleString()} streams
         </p>
       </div>
       <div className="flex items-center gap-2">

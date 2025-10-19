@@ -1,41 +1,51 @@
 import { useState, useEffect } from 'react';
-import { PlayCircle, Users, Gem, MessageCircle, UserPlus, Camera, MapPin, Calendar, Globe, Settings, Loader2, AlertCircle, Plus, UserCheck, UserX } from 'lucide-react';
+import { PlayCircle, Users, Gem, MessageCircle, UserPlus, Camera, MapPin, Calendar, Globe, Settings, Loader2, AlertCircle, Plus, UserCheck, UserX, Eye, EyeOff } from 'lucide-react';
 import { format } from 'date-fns';
 import { Button } from '@/components/@/ui/button';
 import { Badge } from '@/components/@/ui/badge';
 import { SettingsDialog } from '@/components/settings-dialog';
 import { DialogTrigger } from '@/components/ui/dialog';
-import { User, Profile, ProfileStats } from '@/lib/types';
+import { Profile } from '@/lib/types';
 import { supabase } from '@/lib/supabase';
+import { User } from '@supabase/supabase-js';
 import useProfile from '@/hooks/useProfile';
+import { useFollowingStore } from '@/hooks/useFollowing';
+import { useMessaging } from '@/contexts/messaging-context';
 
 interface ProfileHeaderProps {
-  user: User;
-  profile?: Profile | null;
-  stats: ProfileStats | null;
+  user: User | null;
+  profile?: (Profile & { streams?: number; gems?: number; followers?: number; following?: number; }) | null;
   updateProfile?: (updates: Partial<Profile>) => Promise<void>;
-  setUploadType: (type: 'avatar' | 'banner' | null) => void;
-  setShowCreateProjectDialog: (show: boolean) => void;
-  setShowCreateSoundpackDialog: (show: boolean) => void;
+  setUploadType?: (type: 'avatar' | 'banner' | null) => void;
+  openCreateProjectDialog?: () => void;
+  openCreateSoundpackDialog?: () => void;
+  onProfileUpdate?: () => void;
+  isPreviewMode?: boolean;
+  onTogglePreview?: () => void;
 }
 
-const ProfileHeader = ({ 
-  user, 
-  profile, 
-  stats, 
-  updateProfile = async () => {}, 
-  setUploadType,
-  setShowCreateProjectDialog,
-  setShowCreateSoundpackDialog
+const ProfileHeader = ({
+  user,
+  profile,
+  updateProfile = async () => {},
+  setUploadType = () => {},
+  openCreateProjectDialog = () => {},
+  openCreateSoundpackDialog = () => {},
+  onProfileUpdate,
+  isPreviewMode = false,
+  onTogglePreview = () => {}
 }: ProfileHeaderProps) => {
   const name = profile?.full_name || '';
   const isOwner = user?.id === profile?.id;
   const { id: profileId } = profile || {};
   const { id: authUserId } = user || {};
   const [isFollowing, setIsFollowing] = useState(false);
-  const [followersCount, setFollowersCount] = useState(stats?.followers || 0);
-  const [followingCount, setFollowingCount] = useState(stats?.following || 0);
+  const [followersCount, setFollowersCount] = useState(profile?.followers || 0);
+  const [followingCount, setFollowingCount] = useState(profile?.following || 0);
+  const effectiveIsOwner = isOwner && !isPreviewMode;
   const { fetchProfile } = useProfile();
+  const { fetchFollowing } = useFollowingStore();
+  const { openMessaging } = useMessaging();
 
 
   useEffect(() => {
@@ -53,9 +63,9 @@ const ProfileHeader = ({
   }, [authUserId, profileId, isOwner]);
 
   useEffect(() => {
-    setFollowersCount(stats?.followers || 0);
-    setFollowingCount(stats?.following || 0);
-  }, [stats]);
+    setFollowersCount(profile?.followers || 0);
+    setFollowingCount(profile?.following || 0);
+  }, [profile]);
 
   const handleFollow = async () => {
     if (!authUserId || !profileId || isOwner) return;
@@ -67,9 +77,14 @@ const ProfileHeader = ({
       console.error(`Error ${functionName}ing user:`, error);
     } else {
       setIsFollowing(!isFollowing);
-      // Refetch profile to get updated follower count
+      // Update follower count immediately for live updates
+      setFollowersCount(prev => isFollowing ? prev - 1 : prev + 1);
+      // Refetch profile to get updated follower count (for consistency)
       if (profileId) {
         fetchProfile(profileId);
+      }
+      if (authUserId) {
+        fetchFollowing(authUserId);
       }
     }
   };
@@ -142,7 +157,7 @@ const ProfileHeader = ({
               <Camera className="h-12 w-12 text-gray-400 opacity-40" />
             </div>
           )}
-          {isOwner && (
+          {effectiveIsOwner && (
             <div
               className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-90 transition-opacity duration-300 bg-black/30"
               onClick={() => setUploadType('banner')}
@@ -190,7 +205,7 @@ const ProfileHeader = ({
                     <Camera className="h-10 w-10 text-gray-300 opacity-40" />
                   </div>
                 )}
-                {isOwner && (
+                {effectiveIsOwner && (
                   <div
                     className="absolute inset-0 rounded-full flex items-center justify-center opacity-0 hover:opacity-90 transition-opacity duration-300 bg-black/30"
                     onClick={() => setUploadType('avatar')}
@@ -209,15 +224,25 @@ const ProfileHeader = ({
                     {name && (
                       <h1 className="text-2xl font-bold truncate">{name}</h1>
                     )}
-                    {profile?.professional_title && (
-                      <Badge className="bg-black text-white">{profile.professional_title}</Badge>
+                    {isOwner && (
+                      <button
+                        onClick={onTogglePreview}
+                        className="p-1 hover:bg-accent rounded-full transition-colors"
+                        title={isPreviewMode ? 'Exit preview mode' : 'Preview as guest'}
+                      >
+                        {isPreviewMode ? (
+                          <EyeOff className="h-5 w-5 text-muted-foreground" />
+                        ) : (
+                          <Eye className="h-5 w-5 text-muted-foreground" />
+                        )}
+                      </button>
                     )}
                   </div>
 
                   <div className="flex items-center gap-6 pt-2 pb-2">
                     <div className="flex items-center gap-1">
                       <PlayCircle className="h-4 w-4 text-primary" />
-                      <span className="text-sm">{stats?.streams?.toLocaleString() || '0'}</span>
+                      <span className="text-sm">{profile?.streams?.toLocaleString() || '0'}</span>
                       <span className="text-xs text-muted-foreground">Streams</span>
                     </div>
                     <div className="flex items-center gap-1">
@@ -227,7 +252,7 @@ const ProfileHeader = ({
                     </div>
                     <div className="flex items-center gap-1">
                       <Gem className="h-4 w-4 text-primary" />
-                      <span className="text-sm">{stats?.gems || '0'}</span>
+                      <span className="text-sm">{profile?.gems || '0'}</span>
                       <span className="text-xs text-muted-foreground">Gems</span>
                     </div>
                   </div>
@@ -263,9 +288,9 @@ const ProfileHeader = ({
 
                 {/* Action Buttons */}
                 <div className="flex flex-wrap gap-3 mr-10">
-                  {!isOwner ? (
+                  {!effectiveIsOwner ? (
                     <>
-                      <Button variant="outline">
+                      <Button variant="outline" onClick={() => profile && openMessaging(profile)}>
                         <MessageCircle className="h-4 w-4 mr-2" />
                         Message
                       </Button>
@@ -285,15 +310,7 @@ const ProfileHeader = ({
                     </>
                   ) : (
                     <>
-                      <Button variant="outline" onClick={() => setShowCreateProjectDialog(true)}>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Create Project
-                      </Button>
-                      <Button variant="outline" onClick={() => setShowCreateSoundpackDialog(true)}>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Create Soundpack
-                      </Button>
-                      <SettingsDialog>
+                      <SettingsDialog onProfileUpdate={onProfileUpdate} profile={profile}>
                         <DialogTrigger asChild>
                           <Button variant="outline">
                             <Settings className="h-4 w-4 mr-2" />

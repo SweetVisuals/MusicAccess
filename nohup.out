@@ -1,0 +1,85 @@
+
+> vite-starter@0.0.0 dev
+> npm run copy-pdf-worker && vite
+
+
+> vite-starter@0.0.0 copy-pdf-worker
+> cp node_modules/pdfjs-dist/build/pdf.worker.min.mjs public/pdf.worker.min.js
+
+▲ [WARNING] Duplicate key "resolveJsonModule" in object literal [duplicate-object-key]
+
+    tsconfig.json:18:4:
+      18 │     "resolveJsonModule": true,
+         ╵     ~~~~~~~~~~~~~~~~~~~
+
+  The original key "resolveJsonModule" is here:
+
+    tsconfig.json:8:4:
+      8 │     "resolveJsonModule": true,
+        ╵     ~~~~~~~~~~~~~~~~~~~
+
+Port 5173 is in use, trying another one...
+Port 5174 is in use, trying another one...
+
+  VITE v5.4.19  ready in 802 ms
+
+  ➜  Local:   http://localhost:5175/
+  ➜  Network: use --host to expose
+  ➜  press h + enter to show help
+
+> vite-starter@0.0.0 dev
+> npm run copy-pdf-worker && vite
+
+
+> vite-starter@0.0.0 copy-pdf-worker
+> cp node_modules/pdfjs-dist/build/pdf.worker.min.mjs public/pdf.worker.min.js
+
+▲ [WARNING] Duplicate key "resolveJsonModule" in object literal [duplicate-object-key]
+
+    tsconfig.json:18:4:
+      18 │     "resolveJsonModule": true,
+         ╵     ~~~~~~~~~~~~~~~~~~~
+
+  The original key "resolveJsonModule" is here:
+
+    tsconfig.json:8:4:
+      8 │     "resolveJsonModule": true,
+        ╵     ~~~~~~~~~~~~~~~~~~~
+
+Port 5173 is in use, trying another one...
+Port 5174 is in use, trying another one...
+
+  VITE v5.4.19  ready in 1871 ms
+
+  ➜  Local:   http://localhost:5175/
+  ➜  Network: use --host to expose
+  ➜  press h + enter to show help
+11:43:53 PM [vite] page reload dist/index.html
+
+> vite-starter@0.0.0 dev
+> npm run copy-pdf-worker && vite
+
+
+> vite-starter@0.0.0 copy-pdf-worker
+> cp node_modules/pdfjs-dist/build/pdf.worker.min.mjs public/pdf.worker.min.js
+
+▲ [WARNING] Duplicate key "resolveJsonModule" in object literal [duplicate-object-key]
+
+    tsconfig.json:18:4:
+      18 │     "resolveJsonModule": true,
+         ╵     ~~~~~~~~~~~~~~~~~~~
+
+  The original key "resolveJsonModule" is here:
+
+    tsconfig.json:8:4:
+      8 │     "resolveJsonModule": true,
+        ╵     ~~~~~~~~~~~~~~~~~~~
+
+Port 5173 is in use, trying another one...
+Port 5174 is in use, trying another one...
+
+  VITE v5.4.19  ready in 963 ms
+
+  ➜  Local:   http://localhost:5175/
+  ➜  Network: use --host to expose
+  ➜  press h + enter to show help

@@ -12,7 +12,7 @@ export function usePlaylists(userId: string) {
     setError(null);
     const { data, error } = await supabase
       .from('playlists')
-      .select('*')
+      .select('*, profiles(full_name, username, avatar_url, professional_title)')
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
     if (error) setError(error.message);

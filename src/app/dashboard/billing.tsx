@@ -2,17 +2,18 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/@/ui/progress"
 import { Badge } from "@/components/@/ui/badge"
-import { Check, HardDrive, Database, Cloud, CreditCard, Download, Upload } from "lucide-react"
+import { Check, HardDrive, Database, Cloud, CreditCard, Download, Upload, ArrowLeft } from "lucide-react"
 import { useAuth } from "@/contexts/auth-context"
 import useUserData from "@/hooks/useUserData"
+import { useState } from "react"
 
 const plans = [
   {
     name: "Free",
     price: 0,
-    storage: "1GB",
+    storage: "500MB",
     features: [
-      "1 GB Storage",
+      "500 MB Storage",
       "Unlimited Projects",
       "Unlimited Soundpacks",
       "3 Services"
@@ -22,7 +23,7 @@ const plans = [
   },
   {
     name: "Basic",
-    price: 14.99,
+    price: 9.99,
     storage: "5GB",
     features: [
       "5 GB Storage",
@@ -34,7 +35,7 @@ const plans = [
   },
   {
     name: "Pro",
-    price: 21.99,
+    price: 14.99,
     storage: "10GB",
     features: [
       "10 GB Storage",
@@ -46,13 +47,60 @@ const plans = [
   },
   {
     name: "Business",
-    price: 41.99,
+    price: 24.99,
     storage: "25GB",
     features: [
       "25 GB Storage",
       "Unlimited Projects",
       "Unlimited Soundpacks",
       "Unlimited Services",
+    ],
+    popular: false,
+  },
+];
+
+const storageOptions = [
+  {
+    name: "5GB Extra",
+    price: 9.99,
+    storage: "5GB",
+    features: [
+      "Additional 5GB Storage",
+      "Instant activation",
+      "No recurring charges"
+    ],
+    popular: false,
+  },
+  {
+    name: "20GB Extra",
+    price: 29.99,
+    storage: "20GB",
+    features: [
+      "Additional 20GB Storage",
+      "Instant activation",
+      "No recurring charges"
+    ],
+    popular: true,
+  },
+  {
+    name: "50GB Extra",
+    price: 59.99,
+    storage: "50GB",
+    features: [
+      "Additional 50GB Storage",
+      "Instant activation",
+      "No recurring charges"
+    ],
+    popular: false,
+  },
+  {
+    name: "100GB Extra",
+    price: 99.99,
+    storage: "100GB",
+    features: [
+      "Additional 100GB Storage",
+      "Instant activation",
+      "No recurring charges"
     ],
     popular: false,
   },
@@ -65,6 +113,8 @@ export default function BillingPage() {
     storageLimit,
     loadingStorage,
   } = useUserData()
+
+  const [showStorageOptions, setShowStorageOptions] = useState(false)
 
   // Calculate storage percentage
   const storagePercentage = Math.min(Math.round((storageUsed / storageLimit) * 100), 100)
@@ -117,15 +167,25 @@ export default function BillingPage() {
                 <p className="font-medium">Need more storage?</p>
                 <p className="text-sm text-muted-foreground">Purchase additional storage to keep your files safe.</p>
               </div>
-              <Button>Purchase Storage</Button>
+              <Button onClick={() => setShowStorageOptions(true)}>Purchase Storage</Button>
             </div>
           </CardContent>
         </Card>
 
         {/* Plans */}
+        {showStorageOptions && (
+          <div className="flex items-center gap-4 mb-6">
+            <Button variant="outline" onClick={() => setShowStorageOptions(false)}>
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Plans
+            </Button>
+            <h2 className="text-2xl font-bold">Purchase Additional Storage</h2>
+          </div>
+        )}
+
         <div className="grid gap-6 lg:grid-cols-4">
-          {plans.map((plan) => (
-            <Card key={plan.name} className={`${plan.popular ? "border-primary" : ""} ${plan.current ? "ring-2 ring-primary" : ""}`}>
+          {(showStorageOptions ? storageOptions : plans).map((plan) => (
+            <Card key={plan.name} className={`${plan.popular ? "border-primary" : ""}`}>
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   {plan.name}
@@ -136,7 +196,7 @@ export default function BillingPage() {
                 <CardDescription>
                   <div className="flex items-baseline gap-1">
                     <span className="text-3xl font-bold">${plan.price}</span>
-                    <span className="text-muted-foreground">/month</span>
+                    <span className="text-muted-foreground">{showStorageOptions ? "" : "/month"}</span>
                   </div>
                 </CardDescription>
               </CardHeader>
@@ -161,8 +221,8 @@ export default function BillingPage() {
                 </ul>
               </CardContent>
               <CardFooter>
-                <Button className="w-full" variant={plan.popular ? "default" : "outline"} disabled={plan.current}>
-                  {plan.current ? "Current Plan" : plan.price > 0 ? `Upgrade to ${plan.name}` : `Get ${plan.name}`}
+                <Button className="w-full" variant={plan.popular ? "default" : "outline"} disabled={false}>
+                  {showStorageOptions ? `Purchase ${plan.name}` : plan.price > 0 ? `Upgrade to ${plan.name}` : `Get ${plan.name}`}
                 </Button>
               </CardFooter>
             </Card>

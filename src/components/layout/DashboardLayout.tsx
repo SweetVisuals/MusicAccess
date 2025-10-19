@@ -2,7 +2,7 @@ import React from 'react';
 import { useLocation } from 'react-router-dom';
 import { CSSTransition, SwitchTransition } from 'react-transition-group';
 import { AppSidebar } from "@/components/dashboard/layout/app-sidebar";
-import { DashboardSiteHeader } from "@/components/dashboard/layout/site-header"; // Import the new dashboard header
+import { SiteHeader } from "@/components/homepage/site-header"; // Use homepage header for consistency
 import { SidebarInset, SidebarProvider } from "@/components/@/ui/sidebar";
 
 interface DashboardLayoutProps {
@@ -20,7 +20,7 @@ export function DashboardLayout({ children, show_header = true }: DashboardLayou
       <div className="flex h-screen w-screen">
         <AppSidebar variant="inset" style={{ flexShrink: 0 }} />
         <div className="flex-1 flex flex-col" style={{ width: 'calc(100vw - 80px)', maxWidth: 'none' }}>
-          <main className="flex-1 w-full" style={{ maxWidth: 'none' }}>
+          <main className="flex-1 w-full min-h-0" style={{ maxWidth: 'none' }}>
             <SwitchTransition mode="out-in">
               <CSSTransition
                 key={location.pathname}
@@ -29,7 +29,7 @@ export function DashboardLayout({ children, show_header = true }: DashboardLayou
                 timeout={300}
                 unmountOnExit
               >
-                <div ref={nodeRef} className="w-full" style={{ maxWidth: 'none' }}>
+                <div ref={nodeRef} className="w-full h-full" style={{ maxWidth: 'none' }}>
                   {children}
                 </div>
               </CSSTransition>
@@ -42,28 +42,26 @@ export function DashboardLayout({ children, show_header = true }: DashboardLayou
   
   // Default layout with header
   return (
-    <SidebarProvider>
-      <div className="flex h-screen w-screen pt-6">
-        <AppSidebar variant="inset" style={{ flexShrink: 0 }} />
-        <div className="flex-1 flex flex-col" style={{ width: 'calc(100vw - 80px)', maxWidth: 'none' }}>
-          <DashboardSiteHeader />
-          <main className="flex-1 w-full" style={{ maxWidth: 'none' }}>
-            <SwitchTransition mode="out-in">
-              <CSSTransition
-                key={location.pathname}
-                nodeRef={nodeRef}
-                classNames="page-transition"
-                timeout={300}
-                unmountOnExit
-              >
-                <div ref={nodeRef} className="w-full" style={{ maxWidth: 'none' }}>
-                  {children}
-                </div>
-              </CSSTransition>
-            </SwitchTransition>
-          </main>
-        </div>
+    <div className="flex h-screen w-screen">
+      <AppSidebar variant="inset" style={{ flexShrink: 0 }} />
+      <div className="flex-1 flex flex-col" style={{ width: 'calc(100vw - 80px)', maxWidth: 'none' }}>
+        <SiteHeader />
+        <main className="flex-1 w-full min-h-0" style={{ maxWidth: 'none' }}>
+          <SwitchTransition mode="out-in">
+            <CSSTransition
+              key={location.pathname}
+              nodeRef={nodeRef}
+              classNames="page-transition"
+              timeout={300}
+              unmountOnExit
+            >
+              <div ref={nodeRef} className="w-full h-full" style={{ maxWidth: 'none' }}>
+                {children}
+              </div>
+            </CSSTransition>
+          </SwitchTransition>
+        </main>
       </div>
-    </SidebarProvider>
+    </div>
   );
 }

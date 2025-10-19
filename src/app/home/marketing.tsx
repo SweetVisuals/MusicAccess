@@ -1,4 +1,3 @@
-import { HomeLayout } from "@/components/layout/HomeLayout"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/@/ui/card"
 import { Button } from "@/components/@/ui/button"
 import { Input } from "@/components/@/ui/input"
@@ -115,8 +114,7 @@ const platforms = [
 
 export default function MarketingPage() {
   return (
-    <HomeLayout>
-      <div className="flex-1 space-y-8 p-8 pt-6">
+    <div className="flex-1 space-y-8 p-8 pt-6">
         {/* Header Section */}
         <div className="space-y-4">
           <div className="flex justify-between items-center">
@@ -244,6 +242,5 @@ export default function MarketingPage() {
           ))}
         </div>
       </div>
-    </HomeLayout>
   )
 }

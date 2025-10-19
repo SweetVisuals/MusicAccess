@@ -12,7 +12,7 @@ interface DeleteConfirmationDialogProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   onConfirm: () => void;
-  itemType: 'file' | 'folder' | null;
+  itemType: 'file' | 'folder' | 'selected' | null;
   itemName: string;
 }
 
@@ -36,8 +36,12 @@ export function DeleteConfirmationDialog({
           <p className="text-center text-muted-foreground">
             {itemType === 'file' ? (
               <>Are you sure you want to delete the file <span className="font-medium text-foreground">{itemName}</span>?</>
-            ) : (
+            ) : itemType === 'folder' ? (
               <>Are you sure you want to delete the folder <span className="font-medium text-foreground">{itemName}</span> and all its contents?</>
+            ) : itemType === 'selected' ? (
+              <>Are you sure you want to delete <span className="font-medium text-foreground">{itemName}</span>?</>
+            ) : (
+              <>Are you sure you want to delete this item?</>
             )}
           </p>
         </div>
@@ -56,7 +60,7 @@ export function DeleteConfirmationDialog({
             className="gap-1"
           >
             <Trash2 className="h-4 w-4" />
-            Delete {itemType}
+            Delete {itemType === 'selected' ? 'Selected' : itemType}
           </Button>
         </DialogFooter>
       </DialogContent>

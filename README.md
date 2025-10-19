@@ -1,72 +1,122 @@
-# Music Access Studio
+# TuneFlow - Audio-Focused Web Application
 
-## Inspiration
-Music Access Studio is inspired by a combination of popular platforms:
-- **Dropbox**: For robust file management.
-- **YouTube**: For content discovery and sharing.
-- **Google Drive**: For organization and collaboration.
-- **Spotify**: For high-quality audio streaming.
+TuneFlow is a modern web application for music creators and listeners, featuring audio playback, project management, and e-commerce capabilities.
 
-It aims to be a professional collaboration platform specifically for music professionals.
+## Features
 
-## What it does
-Music Access Studio is designed to be a comprehensive platform for music professionals, offering a suite of features to streamline collaboration and project management:
+- 🎵 Audio player with playlist support
+- 🎛️ Music project management
+- 👤 User profiles and social features
+- 🛒 E-commerce functionality (cart/checkout)
+- 📁 File/document management
+- 🎨 Modern UI with dark/light themes
+- 🔐 Authentication via Supabase
+
+## Tech Stack
+
+- ⚡ [Vite](https://vitejs.dev/) - Next-gen frontend tooling
+- ⚛️ [React](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/)
+- 🎨 [Tailwind CSS](https://tailwindcss.com/) + [Radix UI](https://www.radix-ui.com/)
+- 🔥 [Supabase](https://supabase.com/) - Backend services
+- 🎧 Audio processing libraries
+
+## How It Works
+
+### User Accounts
+- **Registration**: Email/password or OAuth via Supabase Auth
+- **Profiles**: Auto-created with username, avatar, bio, and role (free/paid/admin)
+- **Wallets**: Each user gets a wallet for transactions and purchases
 
 ### File Management
-- **Drag & Drop Upload**: Easily upload high-quality audio files, including stems, mixes, and masters, with an intuitive interface.
-- **Version Control**: Track revisions and alternate takes of audio projects, ensuring no work is lost and allowing for easy comparison.
-- **Project Organization**: Maintain a structured folder system with rich metadata tagging for efficient project management.
-- **Secure Sharing**: Implement granular permissions to control access and sharing of files with collaborators.
+- **Upload**: Drag-and-drop via React Dropzone to Supabase Storage
+- **Organization**: Files grouped into Projects → Tracks → Audio files
+- **Types**: Audio (MP3, WAV), Images (cover art), Documents (contracts)
+- **Storage**: Supabase Storage with project-files bucket
 
-### Professional Networking
-- **Skill-Based Profiles**: Create detailed profiles highlighting specific specialties such as mixing, vocals, or production, to attract relevant collaborations.
-- **Project Matching**: Connect with complementary professionals based on skills and project needs.
-- **Messaging System**: Utilize built-in communication tools for seamless interaction with collaborators.
-- **Portfolio Showcase**: Display your best work with context, building a professional presence within the community.
+### Purchase Flow
+1. **Browse**: Users discover projects via search/profiles
+2. **Cart**: Add projects/tracks to cart (stored in cart_items table)
+3. **Checkout**: Process payment via wallet balance
+4. **Access**: Instant download access post-purchase
+5. **History**: Order tracking in dashboard
 
-### Audio Features
-- **High-Fidelity Streaming**: Experience studio-quality playback of audio files directly within the platform.
-- **Time-Stamped Comments**: Provide and receive precise feedback on tracks with comments linked to specific timestamps.
-- **AB Comparison**: Quickly compare different versions of a track or A/B test against reference tracks.
-- **Reference Track Matching**: Analyze and compare your tracks against professional standards to refine your sound.
+### Project Structure
+```
+Projects (albums/beats)
+├── Tracks (individual songs)
+├── Audio files (MP3/WAV)
+├── Cover images
+└── Documents (contracts/licenses)
+```
 
-### User Flows
-Music Access Studio supports various user workflows, including:
-- **Content Creators**: Upload project files with metadata, organize them into workspaces, share securely with collaborators, and efficiently receive and implement feedback.
-- **Collaborators**: Browse projects matching their skills, preview and download stems, submit revisions, and track project progress.
-- **Project Managers**: Assemble team members, monitor file versions, coordinate feedback, and finalize deliverables with ease.
+## Getting Started
 
-## How we built it
-Music Access Studio is built with a modern tech stack:
-- **Frontend**: React with TypeScript, Vite build system, ShadCN UI component library, and Tailwind CSS for styling.
-- **Backend**: Supabase for authentication, database (PostgreSQL with real-time capabilities), and storage for audio files and assets.
-- **Audio Processing**: Web Audio API integration and custom audio visualization components.
+### Prerequisites
+- Node.js v18+
+- npm v9+
+- Supabase account
 
-## Challenges we ran into
-Developing Music Access Studio presented several significant challenges:
-- **Context Window Limitations**: Managing a large and evolving project within the constraints of limited context windows proved challenging, requiring careful attention to information retrieval and processing efficiency.
-- **Token Cost Management**: The extensive codebase and documentation, coupled with iterative development, led to considerable token costs, necessitating optimization strategies for tool usage and information processing.
-- **Database Integration Complexities**: Integrating with the Supabase database, especially handling schema migrations, real-time capabilities, and ensuring robust data handling, required meticulous planning and execution to maintain data integrity and performance.
+### Installation
+1. Clone the repository
+```bash
+git clone https://github.com/your-repo/tuneflow.git
+cd tuneflow
+```
 
-## Accomplishments that we're proud of
-(This section will be filled out as key milestones are achieved.)
+2. Install dependencies
+```bash
+npm install
+```
 
-## What we learned
-Throughout the development of Music Access Studio, we gained valuable insights and knowledge:
-- **Supabase Upload Capabilities**: We learned to effectively utilize Supabase's robust storage and upload features to handle large audio files, ensuring efficient and reliable content delivery.
-- **Proper File Management**: Implementing a structured approach to file management, including version control, metadata tagging, and secure sharing permissions, was crucial for maintaining project integrity and collaboration efficiency.
-- **Leveraging AI with Knowledge Bases**: We discovered the significant benefits of using AI, especially when integrated with a comprehensive knowledge base, to tackle complex development challenges, automate routine tasks, and accelerate problem-solving.
+3. Set up environment variables
+```bash
+cp .env.example .env
+```
 
-## What's next for Music Access Studio
-**Short-term Objectives**:
-- Implement professional-grade file management.
-- Create collaboration-focused user profiles.
-- Develop version control for audio projects.
-- Build secure sharing infrastructure.
+4. Configure your Supabase credentials in `.env`
 
-**Long-term Vision**:
-- Become the industry standard for music collaboration.
-- Develop an in-depth algorithm to show user suggestions better.
-- Embed blockchain integration for enhanced security and transparency.
-- Implement innovative methods to handle contracts and rights transfer.
-- Create a mobile app for on-the-go access.
+### Development
+Start the development server:
+```bash
+npm run dev
+```
+
+### Building for Production
+```bash
+npm run build
+```
+
+### Preview Production Build
+```bash
+npm run preview
+```
+
+## Project Structure
+```
+├── src/
+│   ├── app/              # Application pages
+│   ├── components/       # Reusable components
+│   ├── contexts/         # React contexts
+│   ├── hooks/            # Custom hooks
+│   ├── lib/              # Utility functions
+│   └── styles/           # Global styles
+├── supabase/             # Supabase migrations and functions
+└── public/               # Static assets
+```
+
+## Configuration
+Configure the application by editing the `.env` file:
+```env
+VITE_SUPABASE_URL=your-supabase-url
+VITE_SUPABASE_ANON_KEY=your-supabase-key
+```
+
+## Contributing
+1. Fork the project
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## License
+Distributed under the MIT License. See `LICENSE` for more information.

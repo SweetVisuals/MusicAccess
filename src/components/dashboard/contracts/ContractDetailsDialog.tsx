@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
 });
 
 // Create PDF document component
-const MyDocument = ({ contract }: { contract: Contract }) => (
+export const MyDocument = ({ contract }: { contract: Contract }) => (
   <Document>
     <Page size="A4" style={styles.page}>
       <View style={styles.headerSection}>

@@ -12,7 +12,7 @@ export function UploadProgress({ isUploading, uploadProgress, fileCount }: Uploa
   if (!isUploading) return null;
 
   return (
-    <div className="py-4 bg-primary/5 border-b shadow-sm rounded-md my-2">
+    <div className="py-4 bg-primary/5 border-b shadow-sm rounded-md my-2 px-4">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <div className="flex-shrink-0">

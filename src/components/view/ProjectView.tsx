@@ -18,7 +18,7 @@ interface ProjectViewProps {
 const ProjectView: React.FC<ProjectViewProps> = ({ project, onAddToCart, onDownload, allowDownloads }) => {
   const { currentTrack, playTrack } = useAudioPlayer();
   const { user } = useAuth();
-  const { isInCart } = useCart();
+  const { isInCart, addToCart, addTrackToCart, recentlyAddedId } = useCart();
   const [trackGems, setTrackGems] = useState<Record<string, number>>({});
   const [trackDownloadStatus, setTrackDownloadStatus] = useState<Record<string, boolean>>({});
 
@@ -88,13 +88,16 @@ const ProjectView: React.FC<ProjectViewProps> = ({ project, onAddToCart, onDownl
     toast.success("Gem given successfully!");
   };
 
-  const handleTrackAddToCart = (e: React.MouseEvent, id: string, type: 'project' | 'track') => {
+  const handleTrackAddToCart = (e: React.MouseEvent, track: any) => {
     e.stopPropagation();
-    if (type === 'track') {
-      const { addToCart: trackAddToCart } = useCart();
-      trackAddToCart(id, type);
-      toast.success(`Track added to cart`);
-    }
+    addTrackToCart({
+      id: track.id,
+      title: track.title?.replace(/\.[^/.]+$/, "") || 'Track',
+      price: track.price || 0,
+      producer_name: project.profiles?.username,
+      producer_avatar_url: project.profiles?.avatarUrl
+    });
+    toast.success(`Track added to cart`);
   };
 
   return (
@@ -123,12 +126,15 @@ const ProjectView: React.FC<ProjectViewProps> = ({ project, onAddToCart, onDownl
       <div className="border-t">
         <div className="max-h-96 overflow-y-auto space-y-0.5 p-1 scrollbar-thin">
           {project.audio_tracks && project.audio_tracks.length > 0 ? (
-            project.audio_tracks.map((track, index) => {
-              console.log(`ProjectView - Track ${track.title}: price=${track.price}, project.user_id=${project.user_id}, user.id=${user?.id}, isInCart=${isInCart(track.id, 'track')}`);
-              return (
+            project.audio_tracks.map((track, index) => (
               <div key={track.id} className="flex items-center p-2 rounded-md hover:bg-muted">
                 <button
-                  onClick={() => playTrack({ ...track, duration: track.duration || '0:00', projectTitle: project.title, artworkUrl: project.artworkUrl })}
+                  onClick={() => playTrack({ 
+                    ...track, 
+                    duration: track.duration || 0, 
+                    projectTitle: project.title, 
+                    artworkUrl: project.cover_image_url
+                  })}
                   className="flex-grow flex items-center gap-3 text-left"
                 >
                   <span className="text-xs tabular-nums w-5 text-muted-foreground">{index + 1}.</span>
@@ -138,8 +144,23 @@ const ProjectView: React.FC<ProjectViewProps> = ({ project, onAddToCart, onDownl
                 </button>
                 <div className="ml-auto flex items-center shrink-0 gap-2">
                   {project.user_id !== user?.id && (
-                    <Button variant="ghost" size="icon" onClick={(e) => handleTrackAddToCart(e, track.id, 'track')} disabled={isInCart(track.id, 'track')} title={`Add ${track.title ? track.title.replace(/\.[^/.]+$/, "") : 'Track'} to cart`}>
-                      <ShoppingCart className={`h-4 w-4 ${isInCart(track.id, 'track') ? 'text-primary' : 'text-gray-400 hover:text-primary'} transition-colors`} />
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={(e) => handleTrackAddToCart(e, track)}
+                      disabled={isInCart(track.id, 'track')} 
+                      title={`Add ${track.title ? track.title.replace(/\.[^/.]+$/, "") : 'Track'} to cart`}
+                      className={`transition-all duration-300 ${
+                        recentlyAddedId === track.id 
+                          ? 'animate-pulse ring-2 ring-primary bg-primary/20' 
+                          : ''
+                      }`}
+                    >
+                      <ShoppingCart className={`h-4 w-4 transition-colors ${
+                        isInCart(track.id, 'track') ? 'text-primary' : 'text-gray-400 hover:text-primary'
+                      } ${
+                        recentlyAddedId === track.id ? 'scale-110' : ''
+                      }`} />
                     </Button>
                   )}
                   {trackDownloadStatus[track.id] && (
@@ -155,8 +176,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({ project, onAddToCart, onDownl
                   </span>
                 </div>
               </div>
-            );
-            })
+            ))
           ) : (
             <div className="text-center py-4 text-sm text-muted-foreground">
               No tracks in this project.

@@ -1,24 +1,4 @@
-import * as React from "react"
-import {
-  Bell,
-  Check,
-  Globe,
-  Home,
-  Keyboard,
-  Link,
-  Lock,
-  Menu,
-  MessageCircle,
-  Paintbrush,
-  Settings,
-  Video,
-  ChevronDown,
-  User
-} from "lucide-react"
-import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
-import * as z from "zod"
-
+import * as React from "react";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -26,207 +6,29 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
-import { Button } from "@/components/ui/button"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "./ui/alert-dialog"
+} from "@/components/ui/breadcrumb";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarProvider,
-} from "@/components/ui/sidebar"
-import useProfile from "@/hooks/useProfile"
-import { Profile } from "@/lib/types"
-import { supabase } from "@/lib/supabase"
-import { useAuth } from "@/contexts/auth-context"
-
-const profileFormSchema = z.object({
-  full_name: z.string({
-    required_error: "Name is required",
-    invalid_type_error: "Name must be a string",
-  }).min(2, {
-    message: "Name must be at least 2 characters.",
-  }),
-  username: z.string({
-    required_error: "Username is required",
-    invalid_type_error: "Username must be a string",
-  }).min(3, {
-    message: "Username must be at least 3 characters.",
-  }),
-  bio: z.string({
-    invalid_type_error: "Bio must be a string",
-  }).max(500, {
-    message: "Bio must not exceed 500 characters.",
-  }).optional(),
-  location: z.string({
-    invalid_type_error: "Location must be a string",
-  }).nullable().optional(),
-  website_url: z.string({
-    invalid_type_error: "Website must be a string",
-  }).nullable().optional(),
-  professional_title: z.string({
-    invalid_type_error: "Producer badge must be a string",
-  }).nullable().optional(),
-  genres: z.string({
-    invalid_type_error: "Genres must be a string",
-  }).nullable().optional(),
-  instruments: z.string({
-    invalid_type_error: "Instruments must be a string",
-  }).nullable().optional(),
-})
-
-type ProfileFormValues = z.infer<typeof profileFormSchema>
-
-const data = {
-  nav: [
-    { name: "Profile", icon: Paintbrush },
-    { name: "Appearance", icon: Paintbrush },
-    { name: "Privacy", icon: Lock },
-    { name: "Notifications", icon: Bell },
-    { name: "Connected accounts", icon: Link },
-    { name: "Account", icon: User },
-  ],
-}
+} from "@/components/ui/dialog";
+import { SidebarProvider } from "@/components/ui/sidebar";
+import { SettingsSidebar } from "./settings/SettingsSidebar";
+import { ProfileSettingsForm } from "./settings/ProfileSettingsForm";
+import { AccountSettings } from "./settings/AccountSettings";
 
 interface SettingsDialogProps {
   children?: React.ReactNode;
+  onProfileUpdate?: () => void;
+  profile?: any;
 }
 
-export function SettingsDialog({ children }: SettingsDialogProps) {
-  const [open, setOpen] = React.useState(false)
-  const { profile, updateProfile } = useProfile()
-  const [activeTab, setActiveTab] = React.useState("Profile")
-  const { user, signOut } = useAuth()
-
-  const handleDeleteAccount = async () => {
-    if (!user) return
-
-    try {
-      const { error } = await supabase.functions.invoke('delete-user')
-
-      if (error) {
-        throw error
-      }
-
-      await signOut()
-      setOpen(false)
-      // You might want to redirect the user to the homepage or a "goodbye" page here
-    } catch (error) {
-      console.error('Failed to delete account:', error)
-    }
-  }
-
-  const form = useForm<ProfileFormValues>({
-    resolver: zodResolver(profileFormSchema),
-    defaultValues: {
-      full_name: profile?.full_name || "",
-      username: profile?.username || "",
-      bio: profile?.bio || "",
-      location: profile?.location || "",
-      website_url: profile?.website_url || "",
-      professional_title: profile?.professional_title || "",
-      genres: profile?.genres?.join(", ") || "",
-      instruments: profile?.instruments?.join(", ") || "",
-    },
-  })
-
-  React.useEffect(() => {
-    if (profile) {
-      form.reset({
-        full_name: profile.full_name || "",
-        username: profile.username || "",
-        bio: profile.bio || "",
-        location: profile.location || "",
-        website_url: profile.website_url || "",
-        professional_title: profile.professional_title || "",
-        genres: profile.genres?.join(", ") || "",
-        instruments: profile.instruments?.join(", ") || "",
-      })
-    }
-  }, [profile, form])
-
-  async function onSubmit(data: ProfileFormValues) {
-      try {
-        const payload: Partial<Profile> = { id: profile?.id };
-
-        // Only include fields that have changed
-        if (data.full_name !== profile?.full_name) {
-          payload.full_name = data.full_name || undefined;
-        }
-        if (data.bio !== profile?.bio) {
-          payload.bio = data.bio || undefined;
-        }
-        if (data.location !== profile?.location) {
-          payload.location = data.location === '' ? null : data.location;
-        }
-        if (data.website_url !== profile?.website_url) {
-          payload.website_url = data.website_url === '' ? null : data.website_url;
-        }
-        if (data.professional_title !== profile?.professional_title) {
-          payload.professional_title = data.professional_title || undefined;
-        }
-        if (data.genres !== profile?.genres?.join(', ')) {
-          payload.genres = data.genres 
-            ? data.genres.split(",").map(g => g.trim()).filter(Boolean) 
-            : undefined;
-        }
-        if (data.instruments !== profile?.instruments?.join(', ')) {
-          payload.instruments = data.instruments 
-            ? data.instruments.split(",").map(i => i.trim()).filter(Boolean) 
-            : undefined;
-        }
-
-        await updateProfile(payload);
-        setOpen(false);
-    } catch (error: any) {
-      if (error && error.message) {
-        console.error("Failed to update profile (Supabase):", error.message);
-      } else {
-        console.error("Failed to update profile:", error);
-      }
-    }
-  }
+export function SettingsDialog({ children, onProfileUpdate, profile }: SettingsDialogProps) {
+  const [open, setOpen] = React.useState(false);
+  const [activeTab, setActiveTab] = React.useState("Profile");
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -241,30 +43,7 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
           Customize your settings here.
         </DialogDescription>
         <SidebarProvider className="items-start">
-          <Sidebar collapsible="none" className="hidden md:flex">
-            <SidebarContent>
-              <SidebarGroup>
-                <SidebarGroupContent>
-                  <SidebarMenu>
-                    {data.nav.map((item) => (
-                      <SidebarMenuItem key={item.name}>
-                        <SidebarMenuButton
-                          asChild
-                          isActive={activeTab === item.name}
-                          onClick={() => setActiveTab(item.name)}
-                        >
-                          <button type="button">
-                            <item.icon />
-                            <span>{item.name}</span>
-                          </button>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    ))}
-                  </SidebarMenu>
-                </SidebarGroupContent>
-              </SidebarGroup>
-            </SidebarContent>
-          </Sidebar>
+          <SettingsSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
           <main className="flex h-[480px] flex-1 flex-col overflow-hidden">
             <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
               <div className="flex items-center gap-2 px-4">
@@ -281,184 +60,8 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
                 </Breadcrumb>
               </div>
             </header>
-            <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-4 pt-0">
-              {activeTab === "Profile" && (
-                <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                    <FormField
-                      control={form.control}
-                      name="full_name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Name</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Your name" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="username"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Username</FormLabel>
-                          <FormControl>
-                            <Input 
-                              placeholder="Your username" 
-                              {...field} 
-                              disabled
-                              className="opacity-70 cursor-not-allowed"
-                            />
-                          </FormControl>
-                          <FormDescription className="text-xs">
-                            Username cannot be changed
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="bio"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Bio</FormLabel>
-                          <FormControl>
-                            <Textarea
-                              placeholder="Tell us about yourself"
-                              className="resize-none"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="location"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Location</FormLabel>
-                          <FormControl>
-                            <Input 
-                              placeholder="Your location" 
-                              {...field} 
-                              value={String(field.value ?? '')}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="website_url"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Website</FormLabel>
-                          <FormControl>
-                            <Input 
-                              placeholder="https://example.com" 
-                              {...field} 
-                              value={String(field.value ?? '')}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="professional_title"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Producer Badge</FormLabel>
-                          <FormControl>
-                            <Select 
-                              onValueChange={field.onChange} 
-                              defaultValue={field.value ?? ''}
-                              value={field.value ?? ''}
-                            >
-                              <SelectTrigger className="w-full">
-                                <SelectValue placeholder="Select a badge" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectGroup>
-                                  <SelectLabel>Producer Badges</SelectLabel>
-                                  <SelectItem value="Producer">Producer</SelectItem>
-                                  <SelectItem value="Engineer">Engineer</SelectItem>
-                                  <SelectItem value="Artist">Artist</SelectItem>
-                                  <SelectItem value="DJ">DJ</SelectItem>
-                                  <SelectItem value="Songwriter">Songwriter</SelectItem>
-                                  <SelectItem value="Composer">Composer</SelectItem>
-                                  <SelectItem value="Beatmaker">Beatmaker</SelectItem>
-                                </SelectGroup>
-                              </SelectContent>
-                            </Select>
-                          </FormControl>
-                          <FormDescription>
-                            This badge will appear on your profile
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="genres"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Genres</FormLabel>
-                          <FormControl>
-                            <Input 
-                              placeholder="Hip Hop, Electronic, etc." 
-                              {...field} 
-                              value={field.value ?? ''}
-                            />
-                          </FormControl>
-                          <FormDescription>
-                            Separate multiple genres with commas
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="instruments"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Instruments</FormLabel>
-                          <FormControl>
-                            <Input 
-                              placeholder="Guitar, Piano, etc." 
-                              {...field} 
-                              value={field.value ?? ''}
-                            />
-                          </FormControl>
-                          <FormDescription>
-                            Separate multiple instruments with commas
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="outline"
-                        type="button"
-                        onClick={() => setOpen(false)}
-                      >
-                        Cancel
-                      </Button>
-                      <Button type="submit">Save changes</Button>
-                    </div>
-                  </form>
-                </Form>
-              )}
+            <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-4 pt-0 sidebar-scrollbar">
+              {activeTab === "Profile" && <ProfileSettingsForm setOpen={setOpen} onProfileUpdate={onProfileUpdate} profile={profile} />}
               {activeTab === "Appearance" && (
                 <div className="flex items-center justify-center h-full">
                   <p className="text-muted-foreground">Appearance settings coming soon</p>
@@ -469,46 +72,11 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
                   <p className="text-muted-foreground">Privacy settings coming soon</p>
                 </div>
               )}
-              {activeTab === "Account" && (
-                <div>
-                  <h3 className="text-lg font-medium">Account</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Manage your account settings.
-                  </p>
-                  <div className="mt-6">
-                    <h4 className="text-md font-medium">Delete Account</h4>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Permanently delete your account and all of your content. This action is not reversible.
-                    </p>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="destructive" className="mt-4">
-                          Delete Profile
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This action cannot be undone. This will permanently delete your
-                            account and remove your data from our servers.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={handleDeleteAccount}>
-                            Continue
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                </div>
-              )}
+              {activeTab === "Account" && <AccountSettings setOpen={setOpen} />}
             </div>
           </main>
         </SidebarProvider>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

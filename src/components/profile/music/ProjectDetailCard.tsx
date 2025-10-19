@@ -17,11 +17,17 @@ interface ProjectDetailCardProps {
 
 const ProjectDetailCard = ({ project, isOpen, onOpenChange }: ProjectDetailCardProps) => {
   const [streamCounts, setStreamCounts] = useState<Record<string, number>>({});
-  const { addToCart } = useCart();
+  const { addToCart, addTrackToCart, recentlyAddedId } = useCart();
   const { user } = useAuth();
 
   const handleAddTrackToCart = (track: Track) => {
-    addToCart(track.id, 'track');
+    addTrackToCart({
+      id: track.id,
+      title: track.title?.replace(/\.[^/.]+$/, "") || 'Track',
+      price: track.price || 0,
+      producer_name: project.profiles?.username,
+      producer_avatar_url: project.profiles?.avatarUrl
+    });
     toast.success(`${track.title} added to cart`);
   };
 
@@ -36,12 +42,12 @@ const ProjectDetailCard = ({ project, isOpen, onOpenChange }: ProjectDetailCardP
 
   useEffect(() => {
     const fetchStreamCounts = async () => {
-      if (!project?.tracks || project.tracks.length === 0) return;
+      if (!project?.audio_tracks || project.audio_tracks.length === 0) return;
 
-      const trackIds = project.tracks.map(t => t.id);
+      const trackIds = project.audio_tracks.map((t: Track) => t.id);
       const { data, error } = await supabase
         .from('track_streams')
-        .select('track_id, id')
+        .select('track_id, streams')
         .in('track_id', trackIds);
 
       if (error) {
@@ -49,9 +55,9 @@ const ProjectDetailCard = ({ project, isOpen, onOpenChange }: ProjectDetailCardP
         return;
       }
 
-      const counts = data.reduce((acc, { track_id }) => {
+      const counts = data.reduce((acc, { track_id, streams }) => {
         if (track_id) {
-          acc[track_id] = (acc[track_id] || 0) + 1;
+          acc[track_id] = (acc[track_id] || 0) + (streams || 0);
         }
         return acc;
       }, {} as Record<string, number>);
@@ -82,19 +88,30 @@ const ProjectDetailCard = ({ project, isOpen, onOpenChange }: ProjectDetailCardP
             <div>
               <h4 className="font-semibold text-lg">Tracks</h4>
               <div className="mt-2 space-y-2">
-                {project.tracks?.map(track => (
+                {project.audio_tracks?.map((track: Track) => (
                   <div key={track.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
                     <div className="flex items-center gap-3">
                       <Play className="h-5 w-5 text-muted-foreground" />
-                      <span>{track.title.replace(/\.[^/.]+$/, "")}</span>
+                      <span>{track.title?.replace(/\.[^/.]+$/, "") || 'Untitled Track'}</span>
                     </div>
                     <div className="flex items-center gap-4">
                       <span className="text-sm text-muted-foreground">
                         {streamCounts[track.id] || 0} streams
                       </span>
                       <Badge variant="outline">$2.99</Badge>
-                      <Button variant="ghost" size="icon" onClick={() => handleAddTrackToCart(track)}>
-                        <ShoppingCart className="h-5 w-5" />
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => handleAddTrackToCart(track)}
+                        className={`transition-all duration-300 ${
+                          recentlyAddedId === track.id 
+                            ? 'animate-pulse ring-2 ring-primary bg-primary/20' 
+                            : ''
+                        }`}
+                      >
+                        <ShoppingCart className={`h-5 w-5 transition-colors ${
+                          recentlyAddedId === track.id ? 'scale-110' : ''
+                        }`} />
                       </Button>
                     </div>
                   </div>
@@ -106,8 +123,18 @@ const ProjectDetailCard = ({ project, isOpen, onOpenChange }: ProjectDetailCardP
                 <div className="text-2xl font-bold text-primary">${project.price || '29.99'}</div>
               </div>
               <div className="mt-4 flex gap-2">
-                <Button size="lg" className="flex-1" onClick={handleAddProjectToCart}>
-                  <ShoppingCart className="mr-2 h-5 w-5" />
+                <Button 
+                  size="lg" 
+                  className={`flex-1 transition-all duration-300 ${
+                    recentlyAddedId === project.id 
+                      ? 'animate-pulse ring-2 ring-primary bg-primary/20' 
+                      : ''
+                  }`}
+                  onClick={handleAddProjectToCart}
+                >
+                  <ShoppingCart className={`mr-2 h-5 w-5 transition-transform ${
+                    recentlyAddedId === project.id ? 'scale-110' : ''
+                  }`} />
                   Add Project to Cart
                 </Button>
                 <Button size="lg" variant="outline">

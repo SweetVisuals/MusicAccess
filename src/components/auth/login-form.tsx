@@ -14,15 +14,12 @@ interface LoginData {
   password: string
 }
 
-export function LoginForm({ 
-  className,
-  ...props
-}: React.ComponentPropsWithoutRef<"div">) {
+export function LoginForm() {
   const [isLoading, setIsLoading] = useState(false)
   const navigate = useNavigate()
 
   return (
-    <div className={cn("flex flex-col gap-6", className)} {...props}>
+    <div className="grid gap-6">
       <form onSubmit={async (e) => {
         e.preventDefault()
         setIsLoading(true)
@@ -49,7 +46,7 @@ export function LoginForm({
           setIsLoading(false)
         }
       }}>
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-10">
           <div className="flex flex-col items-center gap-2">
             <a
               href="#"

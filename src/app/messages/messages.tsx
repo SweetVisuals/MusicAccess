@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { AppSidebar } from "@/components/dashboard/layout/app-sidebar";
-import { SidebarInset, SidebarProvider } from "@/components/@/ui/sidebar";
+
 import { Card, CardContent } from "@/components/@/ui/card";
 import { Button } from "@/components/@/ui/button";
 import { Input } from "@/components/@/ui/input";
@@ -51,7 +50,9 @@ import {
 } from "@/components/@/ui/dialog";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
-import { Conversation, Message, Profile } from "@/lib/types";
+import { Tables } from "@/lib/types";
+type Profile = Tables<'profiles'>;
+import { transformProfileFromDB } from "@/lib/utils";
 
 export default function MessagesPage() {
   const { user } = useAuth();
@@ -68,12 +69,12 @@ export default function MessagesPage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [conversationToDelete, setConversationToDelete] = useState<string | null>(null);
   
-  const { 
-    conversations, 
-    selectedConversation, 
+  const {
+    conversations,
+    selectedConversation,
     setSelectedConversation,
-    messages, 
-    loading, 
+    messages,
+    loading,
     error,
     unreadCount,
     fetchConversations,
@@ -84,16 +85,32 @@ export default function MessagesPage() {
     deleteConversation
   } = useMessages(user?.id || '');
 
+  console.log('Current conversations:', conversations);
+  console.log('Selected conversation:', selectedConversation);
+  console.log('Current user:', user);
+  console.log('Conversations length:', conversations.length);
+  console.log('First conversation participants:', conversations[0]?.participants);
+  console.log('First conversation participant profile:', conversations[0]?.participants[0]?.profile);
+
   // Filter conversations based on search query
   const filteredConversations = conversations.filter(conversation => {
     if (!searchQuery.trim()) return true;
-    
+
     const participant = conversation.participants[0]?.profile;
-    if (!participant) return false;
-    
+    console.log('Filtering conversation:', conversation.id, 'participant:', participant);
+
+    // If participant profile is missing, try to transform it from raw data
+    let transformedParticipant = participant;
+    if (!participant && conversation.participants[0]) {
+      console.log('Transforming participant data:', conversation.participants[0]);
+      transformedParticipant = transformProfileFromDB(conversation.participants[0]);
+    }
+
+    if (!transformedParticipant) return false;
+
     return (
-      participant.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      participant.username?.toLowerCase().includes(searchQuery.toLowerCase())
+      transformedParticipant.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      transformedParticipant.username?.toLowerCase().includes(searchQuery.toLowerCase())
     );
   });
 
@@ -107,13 +124,16 @@ export default function MessagesPage() {
   // Handle sending a message
   const handleSendMessage = async () => {
     if (!messageInput.trim() || !selectedConversation) return;
-    
+
+    console.log('Sending message to conversation:', selectedConversation);
+    console.log('Participants:', selectedConversation.participants);
+
     const result = await sendMessage(
-      selectedConversation.id, 
+      selectedConversation.id,
       messageInput,
       selectedFiles.length > 0 ? selectedFiles : undefined
     );
-    
+
     if (result.success) {
       setMessageInput("");
       setSelectedFiles([]);
@@ -144,7 +164,7 @@ export default function MessagesPage() {
   };
 
   // Get status icon for messages
-  const getStatusIcon = (message: Message) => {
+  const getStatusIcon = (message: any) => {
     if (message.sender_id === user?.id) {
       if (message.is_read) {
         return <CheckCheck className="h-3 w-3 text-blue-500" />;
@@ -161,19 +181,20 @@ export default function MessagesPage() {
       setSearchedUsers([]);
       return;
     }
-    
+
     setIsSearchingUsers(true);
-    
+
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, full_name, username, profile_url')
+        .select('id, full_name, username, avatar_url, bio, location, website_url, banner_url, created_at, updated_at, professional_title, genres, instruments, email, is_onboarded')
         .or(`full_name.ilike.%${query}%,username.ilike.%${query}%`)
         .neq('id', user?.id)
         .limit(10);
-      
+
       if (error) throw error;
-      
+
+      console.log('User search results:', data);
       setSearchedUsers(data || []);
     } catch (error) {
       console.error('Error searching users:', error);
@@ -203,22 +224,26 @@ export default function MessagesPage() {
       toast.error('Please select at least one user');
       return;
     }
-    
+
     const participantIds = selectedUsers.map(u => u.id);
+    console.log('Starting conversation with participants:', participantIds);
+    console.log('Selected users data:', selectedUsers);
     const result = await createConversation(participantIds);
-    
+    console.log('Create conversation result:', result);
+    console.log('Conversation data:', result.conversation);
+
     if (result.success) {
       setShowNewMessageDialog(false);
       setSelectedUsers([]);
-      
-      // Find and select the new conversation
-      await fetchConversations();
-      const newConversation = conversations.find(c => c.id === result.conversationId);
-      if (newConversation) {
-        setSelectedConversation(newConversation);
-        fetchMessages(newConversation.id);
+
+      // Use the conversation data returned from createConversation
+      if (result.conversation) {
+        console.log('Setting selected conversation:', result.conversation);
+        console.log('Conversation participants:', result.conversation.participants);
+        setSelectedConversation(result.conversation);
+        fetchMessages(result.conversation.id);
       }
-      
+
       if (result.isExisting) {
         toast.info('Opened existing conversation');
       } else {
@@ -279,19 +304,17 @@ export default function MessagesPage() {
   };
 
   return (
-    <SidebarProvider>
-      <AppSidebar variant="inset" />
-      <SidebarInset>
-        <div className="flex flex-1 flex-col">
-          <div className="@container/main flex flex-1 animate-fade-in">
-            <div className="flex h-[calc(100vh-64px)] overflow-hidden">
-              {/* Conversations Sidebar */}
-              <div className="w-80 border-r flex flex-col">
+    <div className="w-full h-full">
+        <div className="flex flex-1 flex-col h-full">
+          <div className="flex flex-1 flex-col gap-4 animate-fade-in h-full">
+            <div className="flex h-full overflow-hidden">
+              {/* Conversations Sidebar - Always visible */}
+              <div className="border-r flex flex-col w-80">
                 <div className="p-4 border-b">
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="font-semibold text-lg">Messages</h2>
-                    <Button 
-                      variant="ghost" 
+                    <Button
+                      variant="ghost"
                       size="icon"
                       onClick={() => setShowNewMessageDialog(true)}
                     >
@@ -300,15 +323,15 @@ export default function MessagesPage() {
                   </div>
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input 
-                      placeholder="Search messages..." 
+                    <Input
+                      placeholder="Search messages..."
                       className="pl-9"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                     />
                   </div>
                 </div>
-                
+
                 <Tabs defaultValue="all" className="flex-1 flex flex-col">
                   <div className="px-2 pt-2">
                     <TabsList className="w-full">
@@ -322,7 +345,7 @@ export default function MessagesPage() {
                       <TabsTrigger value="pinned" className="flex-1">Pinned</TabsTrigger>
                     </TabsList>
                   </div>
-                  
+
                   <TabsContent value="all" className="flex-1 overflow-y-auto p-2">
                     {loading ? (
                       <div className="h-full flex items-center justify-center">
@@ -347,15 +370,17 @@ export default function MessagesPage() {
                     ) : (
                       <div className="space-y-1">
                         {filteredConversations.map((conversation) => {
-                          const participant = conversation.participants[0]?.profile;
+                          // Find the participant that is NOT the current user
+                          const otherParticipant = conversation.participants.find(p => p.user_id !== user?.id);
+                          const participant = otherParticipant?.profile;
                           if (!participant) return null;
-                          
+
                           return (
                             <div
                               key={conversation.id}
                               className={`p-2 rounded-lg cursor-pointer transition-colors ${
-                                selectedConversation?.id === conversation.id 
-                                  ? 'bg-accent' 
+                                selectedConversation?.id === conversation.id
+                                  ? 'bg-accent'
                                   : 'hover:bg-muted'
                               }`}
                               onClick={() => {
@@ -363,38 +388,44 @@ export default function MessagesPage() {
                                 fetchMessages(conversation.id);
                               }}
                             >
-                              <div className="flex items-center gap-3">
-                                <div className="relative">
-                                  <Avatar>
-                                    <AvatarImage src={participant.profile_url} />
-                                    <AvatarFallback>{participant.full_name?.[0] || participant.username?.[0]}</AvatarFallback>
-                                  </Avatar>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between">
+                                  <p className="font-medium truncate">
+                                    {(() => {
+                                      console.log('Unread conversation list item - participant:', participant);
+                                      console.log('Unread conversation list item - raw participant data:', otherParticipant);
+
+                                      // If participant profile is missing, try to transform it
+                                      if (!participant && otherParticipant) {
+                                        console.log('Transforming participant data for unread list:', otherParticipant);
+                                        const transformed = transformProfileFromDB(otherParticipant);
+                                        return transformed.username || 'Unknown User';
+                                      }
+
+                                      return participant?.username || 'Unknown User';
+                                    })()}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {conversation.last_message && formatTimestamp(conversation.last_message.created_at!)}
+                                  </p>
                                 </div>
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center justify-between">
-                                    <p className="font-medium truncate">{participant.full_name || participant.username}</p>
-                                    <p className="text-xs text-muted-foreground">
-                                      {conversation.last_message && formatTimestamp(conversation.last_message.created_at)}
-                                    </p>
-                                  </div>
-                                  <div className="flex items-center justify-between">
-                                    <p className="text-sm text-muted-foreground truncate">
-                                      {conversation.last_message?.content}
-                                    </p>
-                                    <div className="flex items-center">
-                                      {conversation.is_pinned && (
-                                        <Pin className="h-3 w-3 text-primary mr-1" />
-                                      )}
-                                      {conversation.unread_count > 0 && (
-                                        <Badge className="h-5 w-5 rounded-full p-0 flex items-center justify-center">
-                                          {conversation.unread_count}
-                                        </Badge>
-                                      )}
-                                    </div>
+                                <div className="flex items-center justify-between">
+                                  <p className="text-sm text-muted-foreground truncate">
+                                    {conversation.last_message?.content}
+                                  </p>
+                                  <div className="flex items-center">
+                                    {conversation.is_pinned && (
+                                      <Pin className="h-3 w-3 text-primary mr-1" />
+                                    )}
+                                    {conversation.unread_count > 0 && (
+                                      <Badge className="h-5 w-5 rounded-full p-0 flex items-center justify-center">
+                                        {conversation.unread_count}
+                                      </Badge>
+                                    )}
                                   </div>
                                 </div>
                               </div>
-                              
+
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                   <Button
@@ -415,7 +446,7 @@ export default function MessagesPage() {
                                     {conversation.is_pinned ? 'Unpin' : 'Pin'}
                                   </DropdownMenuItem>
                                   <DropdownMenuSeparator />
-                                  <DropdownMenuItem 
+                                  <DropdownMenuItem
                                     className="text-red-500"
                                     onClick={(e) => {
                                       e.stopPropagation();
@@ -433,48 +464,68 @@ export default function MessagesPage() {
                       </div>
                     )}
                   </TabsContent>
-                  
+
                   <TabsContent value="unread" className="flex-1 overflow-y-auto p-2">
                     <div className="space-y-1">
                       {filteredConversations
                         .filter(conv => conv.unread_count > 0)
                         .map((conversation) => {
-                          const participant = conversation.participants[0]?.profile;
+                          // Find the participant that is NOT the current user
+                          const otherParticipant = conversation.participants.find(p => p.user_id !== user?.id);
+                          const participant = otherParticipant?.profile;
                           if (!participant) return null;
-                          
+
                           return (
                             <div
                               key={conversation.id}
                               className={`p-2 rounded-lg cursor-pointer transition-colors ${
-                                selectedConversation?.id === conversation.id 
-                                  ? 'bg-accent' 
+                                selectedConversation?.id === conversation.id
+                                  ? 'bg-accent'
                                   : 'hover:bg-muted'
                               }`}
                               onClick={() => {
+                                console.log('Selecting conversation:', conversation);
+                                console.log('Participant profile:', conversation.participants[0]?.profile);
+
+                                // Ensure participant profile is properly transformed
+                                const participant = conversation.participants[0]?.profile;
+                                if (!participant && conversation.participants[0]) {
+                                  console.log('Transforming participant data for selection:', conversation.participants[0]);
+                                  conversation.participants[0].profile = transformProfileFromDB(conversation.participants[0]);
+                                }
+
                                 setSelectedConversation(conversation);
                                 fetchMessages(conversation.id);
                               }}
                             >
-                              <div className="flex items-center gap-3">
-                                <Avatar>
-                                  <AvatarImage src={participant.profile_url} />
-                                  <AvatarFallback>{participant.full_name?.[0] || participant.username?.[0]}</AvatarFallback>
-                                </Avatar>
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center justify-between">
-                                    <p className="font-medium truncate">{participant.full_name || participant.username}</p>
-                                    <p className="text-xs text-muted-foreground">
-                                      {conversation.last_message && formatTimestamp(conversation.last_message.created_at)}
-                                    </p>
-                                  </div>
-                                  <div className="flex items-center justify-between">
-                                    <p className="text-sm text-muted-foreground truncate">
-                                      {conversation.last_message?.content}
-                                    </p>
-                                    <Badge className="h-5 w-5 rounded-full p-0 flex items-center justify-center">
-                                      {conversation.unread_count}
-                                    </Badge>
-                                  </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between">
+                                  <p className="font-medium truncate">
+                                    {(() => {
+                                      console.log('Conversation list item - participant:', participant);
+                                      console.log('Conversation list item - raw participant data:', otherParticipant);
+
+                                      // If participant profile is missing, try to transform it
+                                      if (!participant && otherParticipant) {
+                                        console.log('Transforming participant data for list:', otherParticipant);
+                                        const transformed = transformProfileFromDB(otherParticipant);
+                                        return transformed.username || 'Unknown User';
+                                      }
+
+                                      return participant?.username || 'Unknown User';
+                                    })()}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {conversation.last_message && formatTimestamp(conversation.last_message.created_at!)}
+                                  </p>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <p className="text-sm text-muted-foreground truncate">
+                                    {conversation.last_message?.content}
+                                  </p>
+                                  <Badge className="h-5 w-5 rounded-full p-0 flex items-center justify-center">
+                                    {conversation.unread_count}
+                                  </Badge>
                                 </div>
                               </div>
                             </div>
@@ -482,21 +533,23 @@ export default function MessagesPage() {
                         })}
                     </div>
                   </TabsContent>
-                  
+
                   <TabsContent value="pinned" className="flex-1 overflow-y-auto p-2">
                     <div className="space-y-1">
                       {filteredConversations
                         .filter(conv => conv.is_pinned)
                         .map((conversation) => {
-                          const participant = conversation.participants[0]?.profile;
+                          // Find the participant that is NOT the current user
+                          const otherParticipant = conversation.participants.find(p => p.user_id !== user?.id);
+                          const participant = otherParticipant?.profile;
                           if (!participant) return null;
-                          
+
                           return (
                             <div
                               key={conversation.id}
                               className={`p-2 rounded-lg cursor-pointer transition-colors ${
-                                selectedConversation?.id === conversation.id 
-                                  ? 'bg-accent' 
+                                selectedConversation?.id === conversation.id
+                                  ? 'bg-accent'
                                   : 'hover:bg-muted'
                               }`}
                               onClick={() => {
@@ -504,31 +557,39 @@ export default function MessagesPage() {
                                 fetchMessages(conversation.id);
                               }}
                             >
-                              <div className="flex items-center gap-3">
-                                <Avatar>
-                                  <AvatarImage src={participant.profile_url} />
-                                  <AvatarFallback>{participant.full_name?.[0] || participant.username?.[0]}</AvatarFallback>
-                                </Avatar>
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center justify-between">
-                                    <p className="font-medium truncate">{participant.full_name || participant.username}</p>
-                                    <div className="flex items-center">
-                                      <Pin className="h-3 w-3 text-primary mr-1" />
-                                      <p className="text-xs text-muted-foreground">
-                                        {conversation.last_message && formatTimestamp(conversation.last_message.created_at)}
-                                      </p>
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center justify-between">
-                                    <p className="text-sm text-muted-foreground truncate">
-                                      {conversation.last_message?.content}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between">
+                                  <p className="font-medium truncate">
+                                    {(() => {
+                                      console.log('Pinned conversation list item - participant:', participant);
+                                      console.log('Pinned conversation list item - raw participant data:', otherParticipant);
+
+                                      // If participant profile is missing, try to transform it
+                                      if (!participant && otherParticipant) {
+                                        console.log('Transforming participant data for pinned list:', otherParticipant);
+                                        const transformed = transformProfileFromDB(otherParticipant);
+                                        return transformed.username || 'Unknown User';
+                                      }
+
+                                      return participant?.username || 'Unknown User';
+                                    })()}
+                                  </p>
+                                  <div className="flex items-center">
+                                    <Pin className="h-3 w-3 text-primary mr-1" />
+                                    <p className="text-xs text-muted-foreground">
+                                      {conversation.last_message && formatTimestamp(conversation.last_message.created_at!)}
                                     </p>
-                                    {conversation.unread_count > 0 && (
-                                      <Badge className="h-5 w-5 rounded-full p-0 flex items-center justify-center">
-                                        {conversation.unread_count}
-                                      </Badge>
-                                    )}
                                   </div>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <p className="text-sm text-muted-foreground truncate">
+                                    {conversation.last_message?.content}
+                                  </p>
+                                  {conversation.unread_count > 0 && (
+                                    <Badge className="h-5 w-5 rounded-full p-0 flex items-center justify-center">
+                                      {conversation.unread_count}
+                                    </Badge>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -538,29 +599,40 @@ export default function MessagesPage() {
                   </TabsContent>
                 </Tabs>
               </div>
+
               
               {/* Chat Area */}
-              <div className="flex-1 flex flex-col">
+              <div className="flex-1 flex flex-col flex-grow">
                 {selectedConversation ? (
                   <>
                     {/* Chat Header */}
                     <div className="p-4 border-b flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        {selectedConversation.participants[0]?.profile && (
-                          <Avatar>
-                            <AvatarImage src={selectedConversation.participants[0].profile.profile_url} />
-                            <AvatarFallback>
-                              {selectedConversation.participants[0].profile.full_name?.[0] || 
-                               selectedConversation.participants[0].profile.username?.[0]}
-                            </AvatarFallback>
-                          </Avatar>
-                        )}
-                        <div>
-                          <h3 className="font-medium">
-                            {selectedConversation.participants[0]?.profile?.full_name || 
-                             selectedConversation.participants[0]?.profile?.username}
-                          </h3>
-                        </div>
+                      <div>
+                        <h3 className="font-medium">
+                          {(() => {
+                            const participant = selectedConversation.participants[0]?.profile;
+                            console.log('Chat header - selected conversation:', selectedConversation);
+                            console.log('Chat header - participant profile:', participant);
+
+                            // If profile is missing, try to transform from raw data
+                            if (!participant && selectedConversation.participants[0]) {
+                              console.log('Transforming participant data for header:', selectedConversation.participants[0]);
+                              const transformed = transformProfileFromDB(selectedConversation.participants[0]);
+                              return transformed.username || 'Unknown User';
+                            }
+
+                            // Display the other participant's name (not the current user)
+                            // Find the participant that is NOT the current user
+                            const otherParticipant = selectedConversation.participants.find(p =>
+                              p.user_id !== user?.id
+                            );
+                            const otherProfile = otherParticipant?.profile;
+                            if (otherProfile) {
+                              return otherProfile.full_name || otherProfile.username || 'Unknown User';
+                            }
+                            return participant?.full_name || participant?.username || 'Unknown User';
+                          })()}
+                        </h3>
                       </div>
                       <div className="flex items-center gap-2">
                         <Button variant="ghost" size="icon">
@@ -582,7 +654,7 @@ export default function MessagesPage() {
                           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                         </div>
                       ) : messages.length === 0 ? (
-                        <div className="h-full flex flex-col items-center justify-center text-center p-4">
+                        <div className="h-full flex flex-col items-center justify-end text-center p-4 pt-32">
                           <div className="bg-muted/50 p-4 rounded-full mb-4">
                             <MessageSquare className="h-8 w-8 text-muted-foreground" />
                           </div>
@@ -593,78 +665,68 @@ export default function MessagesPage() {
                         </div>
                       ) : (
                         messages.map((message) => (
-                          <div 
-                            key={message.id} 
+                          <div
+                            key={message.id}
                             className={`flex ${message.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}
                           >
-                            <div className={`flex gap-2 max-w-[70%] ${message.sender_id === user?.id ? 'flex-row-reverse' : ''}`}>
-                              {message.sender_id !== user?.id && (
-                                <Avatar className="h-8 w-8">
-                                  <AvatarImage src={message.sender?.profile_url} />
-                                  <AvatarFallback>
-                                    {message.sender?.full_name?.[0] || message.sender?.username?.[0] || '?'}
-                                  </AvatarFallback>
-                                </Avatar>
-                              )}
-                              <div>
-                                <div 
-                                  className={`rounded-lg p-3 ${
-                                    message.sender_id === user?.id 
-                                      ? 'bg-primary text-primary-foreground' 
-                                      : 'bg-muted'
-                                  }`}
-                                >
-                                  <p>{message.content}</p>
-                                  {message.attachments && message.attachments.length > 0 && (
-                                    <div className="mt-2 space-y-2">
-                                      {message.attachments.map((attachment, index) => (
-                                        <div 
-                                          key={index} 
-                                          className={`flex items-center gap-2 p-2 rounded ${
-                                            message.sender_id === user?.id 
-                                              ? 'bg-primary-foreground/10' 
-                                              : 'bg-background'
-                                          }`}
-                                        >
-                                          {attachment.file_type.startsWith('image/') && <ImageIcon className="h-4 w-4" />}
-                                          {attachment.file_type.startsWith('audio/') && <Mic className="h-4 w-4" />}
-                                          {!attachment.file_type.startsWith('image/') && 
-                                           !attachment.file_type.startsWith('audio/') && <File className="h-4 w-4" />}
-                                          <div className="flex-1 min-w-0">
-                                            <p className="text-xs font-medium truncate">{attachment.file_name}</p>
-                                            {attachment.file_size && (
-                                              <p className="text-xs opacity-70">
-                                                {formatFileSize(attachment.file_size)}
-                                              </p>
-                                            )}
-                                          </div>
-                                          <a 
-                                            href={attachment.file_url} 
-                                            target="_blank" 
-                                            rel="noopener noreferrer"
-                                            className="block"
-                                          >
-                                            <Button 
-                                              variant="ghost" 
-                                              size="icon" 
-                                              className="h-6 w-6"
-                                            >
-                                              <Download className="h-3 w-3" />
-                                            </Button>
-                                          </a>
+                            <div className={`max-w-[70%] ${message.sender_id === user?.id ? 'ml-auto' : ''}`}>
+                              <div
+                                className={`rounded-lg p-3 ${
+                                  message.sender_id === user?.id
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'bg-muted'
+                                }`}
+                              >
+                                <p>{message.content}</p>
+                                {message.attachments && message.attachments.length > 0 && (
+                                  <div className="mt-2 space-y-2">
+                                    {message.attachments?.map((attachment: any, index: number) => (
+                                      <div
+                                        key={index}
+                                        className={`flex items-center gap-2 p-2 rounded ${
+                                          message.sender_id === user?.id
+                                            ? 'bg-primary-foreground/10'
+                                            : 'bg-background'
+                                        }`}
+                                      >
+                                        {attachment.file_type.startsWith('image/') && <ImageIcon className="h-4 w-4" />}
+                                        {attachment.file_type.startsWith('audio/') && <Mic className="h-4 w-4" />}
+                                        {!attachment.file_type.startsWith('image/') &&
+                                         !attachment.file_type.startsWith('audio/') && <File className="h-4 w-4" />}
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-xs font-medium truncate">{attachment.file_name}</p>
+                                          {attachment.file_size && (
+                                            <p className="text-xs opacity-70">
+                                              {formatFileSize(attachment.file_size)}
+                                            </p>
+                                          )}
                                         </div>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
-                                <div 
-                                  className={`flex items-center gap-1 mt-1 text-xs text-muted-foreground ${
-                                    message.sender_id === user?.id ? 'justify-end' : ''
-                                  }`}
-                                >
-                                  <span>{formatTimestamp(message.created_at)}</span>
-                                  {message.sender_id === user?.id && getStatusIcon(message)}
-                                </div>
+                                        <a
+                                          href={attachment.file_url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="block"
+                                        >
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-6 w-6"
+                                          >
+                                            <Download className="h-3 w-3" />
+                                          </Button>
+                                        </a>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                              <div
+                                className={`flex items-center gap-1 mt-1 text-xs text-muted-foreground ${
+                                  message.sender_id === user?.id ? 'justify-end' : ''
+                                }`}
+                              >
+                                <span>{formatTimestamp(message.created_at!)}</span>
+                                {message.sender_id === user?.id && getStatusIcon(message)}
                               </div>
                             </div>
                           </div>
@@ -765,8 +827,6 @@ export default function MessagesPage() {
             </div>
           </div>
         </div>
-      </SidebarInset>
-
       {/* New Message Dialog */}
       <Dialog open={showNewMessageDialog} onOpenChange={setShowNewMessageDialog}>
         <DialogContent className="sm:max-w-[500px]">
@@ -813,7 +873,7 @@ export default function MessagesPage() {
               {!isSearchingUsers && searchedUsers.length > 0 && (
                 <Card>
                   <CardContent className="p-2">
-                    <div className="max-h-[200px] overflow-y-auto">
+                    <div className="max-h-[200px] overflow-y-auto" style={{ maxHeight: '200px' }}>
                       {searchedUsers.map(user => (
                         <div 
                           key={user.id}
@@ -821,7 +881,7 @@ export default function MessagesPage() {
                           onClick={() => handleSelectUser(user)}
                         >
                           <Avatar className="h-8 w-8">
-                            <AvatarImage src={user.profile_url} />
+                            <AvatarImage src={user.avatar_url || undefined} />
                             <AvatarFallback>{user.full_name?.[0] || user.username?.[0]}</AvatarFallback>
                           </Avatar>
                           <div>
@@ -876,7 +936,7 @@ export default function MessagesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </SidebarProvider>
+    </div>
   );
 }
 

@@ -1,14 +1,10 @@
-import { LoginForm } from "@/components/auth/login-form"
-import { HomeLayout } from "@/components/layout/HomeLayout"
+import { LoginForm } from "@/components/auth/login-form";
+import { AuthPagesLayout } from "@/components/layout/AuthPagesLayout";
 
 export default function LoginPage() {
   return (
-    <HomeLayout>
-      <div className="flex flex-col flex-1 items-center justify-center p-4">
-        <div className="w-full max-w-md">
-          <LoginForm />
-        </div>
-      </div>
-    </HomeLayout>
-  )
+    <AuthPagesLayout>
+      <LoginForm />
+    </AuthPagesLayout>
+  );
 }
